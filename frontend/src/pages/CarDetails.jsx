@@ -57,8 +57,8 @@ const CarDetails = () => {
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="h-80 bg-gradient-to-r from-purple-100 to-purple-200 flex items-center justify-center text-8xl">
-              🚘
+            <div className="car-detail-image">
+              <img src={car.image} alt={car.name} className="car-detail-img" />
             </div>
           </div>
 
