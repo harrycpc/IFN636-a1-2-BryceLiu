@@ -11,31 +11,64 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
-      <Link to="/" className="text-2xl font-bold">Your apps name</Link>
-      <div>
-        {user ? (
-          <>
-            <Link to="/tasks" className="mr-4">CRUD</Link>
-            <Link to="/profile" className="mr-4">Profile</Link>
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 px-4 py-2 rounded hover:bg-red-700"
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="mr-4">Login</Link>
-            <Link
-              to="/register"
-              className="bg-green-500 px-4 py-2 rounded hover:bg-green-700"
-            >
-              Register
-            </Link>
-          </>
-        )}
+    <nav className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+        <Link
+          to={user ? '/cars' : '/login'}
+          className="text-2xl font-bold text-gray-800"
+        >
+          Car Rental Booking System
+        </Link>
+
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <Link
+                to="/cars"
+                className="text-gray-700 hover:text-purple-600 font-medium"
+              >
+                Browse Cars
+              </Link>
+
+              <Link
+                to="/bookings"
+                className="text-gray-700 hover:text-purple-600 font-medium"
+              >
+                My Bookings
+              </Link>
+
+              <Link
+                to="/bookings/create"
+                className="bg-purple-500 text-white px-4 py-2 rounded-full font-medium hover:bg-purple-600 transition"
+              >
+                Create Booking
+              </Link>
+
+              <button
+                onClick={handleLogout}
+                className="bg-red-400 text-white px-4 py-2 rounded-full font-medium hover:bg-red-500 transition"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-gray-700 hover:text-purple-600 font-medium"
+              >
+                Login
+              </Link>
+
+              <Link
+                to="/register"
+                className="bg-purple-500 text-white px-4 py-2 rounded-full font-medium hover:bg-purple-600 transition"
+              >
+                Register
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );
