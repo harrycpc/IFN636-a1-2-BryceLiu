@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import BrowseCars from './pages/BrowseCars';
 import CarDetails from './pages/CarDetails';
 import CreateBooking from './pages/CreateBooking';
+import EditBooking from './pages/EditBooking';
 import MyBookings from './pages/MyBookings';
 import { useAuth } from './context/AuthContext';
 
@@ -34,6 +35,10 @@ function App() {
         <Route
           path="/bookings/create"
           element={user ? <CreateBooking /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/bookings/edit/:id"
+          element={user ? <EditBooking /> : <Navigate to="/login" replace />}
         />
       </Routes>
     </Router>

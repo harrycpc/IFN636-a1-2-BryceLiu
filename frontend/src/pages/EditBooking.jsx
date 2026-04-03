@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
 
-const CreateBooking = () => {
+const EditBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { id } = useParams();
 
   const locationOptions = [
     'Brisbane',
@@ -14,8 +14,8 @@ const CreateBooking = () => {
     'Brisbane Airport',
   ];
 
+  const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState(null);
-  const [loadingCar, setLoadingCar] = useState(false);
 
   const [formData, setFormData] = useState({
     pickupLocation: '',
@@ -24,29 +24,47 @@ const CreateBooking = () => {
     returnDate: '',
     totalPrice: 0,
     bookingStatus: 'pending',
-    carId: searchParams.get('carId') || '',
+    carId: '',
   });
 
   useEffect(() => {
-    const fetchCarDetails = async () => {
-      if (!formData.carId) return;
-
+    const fetchBooking = async () => {
       try {
-        setLoadingCar(true);
-        const { data } = await axiosInstance.get(`/api/cars/${formData.carId}`);
-        setSelectedCar(data);
+        setLoading(true);
+
+        const { data } = await axiosInstance.get(`/api/bookings/${id}`, {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        });
+
+        const carData = data.carId || null;
+
+        setSelectedCar(carData);
+
+        setFormData({
+          pickupLocation: data.pickupLocation || '',
+          dropoffLocation: data.dropoffLocation || '',
+          pickupDate: data.pickupDate ? data.pickupDate.slice(0, 10) : '',
+          returnDate: data.returnDate ? data.returnDate.slice(0, 10) : '',
+          totalPrice: data.totalPrice || 0,
+          bookingStatus: data.bookingStatus || 'pending',
+          carId: carData?._id || data.carId || '',
+        });
       } catch (error) {
-        console.error('Failed to load car details:', error);
+        console.error('Failed to load booking details:', error);
+        alert('Failed to load booking details.');
+        navigate('/bookings');
       } finally {
-        setLoadingCar(false);
+        setLoading(false);
       }
     };
 
-    fetchCarDetails();
-  }, [formData.carId]);
+    fetchBooking();
+  }, [id, user, navigate]);
 
   const dailyPrice = useMemo(() => {
-    return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
+    return Number(selectedCar?.pricePerDay || 0);
   }, [selectedCar]);
 
   const rentalDays = useMemo(() => {
@@ -71,10 +89,10 @@ const CreateBooking = () => {
   }, [rentalDays, dailyPrice]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -95,17 +113,17 @@ const CreateBooking = () => {
       return;
     }
 
-    if (!formData.carId) {
-      alert('Car ID is missing.');
-      return;
-    }
-
     try {
-      await axiosInstance.post(
-        '/api/bookings',
+      await axiosInstance.put(
+        `/api/bookings/${id}`,
         {
-          ...formData,
+          pickupLocation: formData.pickupLocation,
+          dropoffLocation: formData.dropoffLocation,
+          pickupDate: formData.pickupDate,
+          returnDate: formData.returnDate,
           totalPrice: Number(formData.totalPrice),
+          bookingStatus: formData.bookingStatus,
+          carId: formData.carId,
         },
         {
           headers: {
@@ -114,32 +132,44 @@ const CreateBooking = () => {
         }
       );
 
-      alert('Booking created successfully.');
+      alert('Booking updated successfully.');
       navigate('/bookings');
     } catch (error) {
       console.error(error);
-      alert('Failed to create booking.');
+      alert('Failed to update booking.');
     }
   };
 
   const today = new Date().toISOString().split('T')[0];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="bg-white rounded-2xl shadow-sm p-8 text-center text-gray-500">
+            Loading booking details...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <Link to="/cars" className="text-purple-600 hover:underline">
-            ← Back to Browse Cars
+        <div className="mb-6 flex items-center justify-between">
+          <Link to="/bookings" className="text-purple-600 hover:underline">
+            ← Back to My Bookings
           </Link>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="bg-white rounded-2xl shadow-sm p-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Create Booking
+              Edit Booking
             </h1>
             <p className="text-gray-500 mb-8">
-              Enter your trip details to confirm the booking.
+              Update your trip details and save the changes.
             </p>
 
             {selectedCar && (
@@ -154,12 +184,6 @@ const CreateBooking = () => {
                 <p className="text-gray-700">
                   <span className="font-medium">Price per day:</span> ${dailyPrice}
                 </p>
-              </div>
-            )}
-
-            {loadingCar && (
-              <div className="mb-6 text-sm text-gray-500">
-                Loading car details...
               </div>
             )}
 
@@ -251,7 +275,6 @@ const CreateBooking = () => {
                   </label>
                   <input
                     type="number"
-                    name="totalPrice"
                     value={formData.totalPrice}
                     readOnly
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed"
@@ -259,31 +282,18 @@ const CreateBooking = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Car ID
-                </label>
-                <input
-                  type="text"
-                  name="carId"
-                  value={formData.carId}
-                  readOnly
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed"
-                />
-              </div>
-
               <button
                 type="submit"
                 className="w-full bg-purple-500 text-white py-3 rounded-full font-medium hover:bg-purple-600 transition"
               >
-                Confirm Booking
+                Save Changes
               </button>
             </form>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-8 h-fit">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              Booking Summary
+              Updated Summary
             </h2>
 
             <div className="space-y-4 text-gray-700">
@@ -350,4 +360,4 @@ const CreateBooking = () => {
   );
 };
 
-export default CreateBooking;
+export default EditBooking;

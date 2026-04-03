@@ -10,6 +10,9 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  const displayName =
+    user?.name || user?.username || user?.email || 'User';
+
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -37,12 +40,9 @@ const Navbar = () => {
                 My Bookings
               </Link>
 
-              <Link
-                to="/bookings/create"
-                className="bg-purple-500 text-white px-4 py-2 rounded-full font-medium hover:bg-purple-600 transition"
-              >
-                Create Booking
-              </Link>
+              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-full">
+                Hi, {displayName}
+              </span>
 
               <button
                 onClick={handleLogout}
@@ -64,7 +64,7 @@ const Navbar = () => {
                 to="/register"
                 className="bg-purple-500 text-white px-4 py-2 rounded-full font-medium hover:bg-purple-600 transition"
               >
-                Register
+                Sign Up
               </Link>
             </>
           )}
