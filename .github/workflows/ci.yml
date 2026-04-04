@@ -1,4 +1,4 @@
-name: CI-CD
+name: CI
 
 on:
   push:
@@ -7,12 +7,11 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   backend-test:
     runs-on: ubuntu-latest
-    environment: production
+    environment: production 
 
     defaults:
       run:
@@ -32,29 +31,3 @@ jobs:
 
       - name: Run backend tests
         run: npm test
-
-  deploy:
-    name: Deploy to EC2
-    needs: backend-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Deploy application on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
-            cd ${{ vars.APP_DIR }}
-            git fetch origin main
-            git reset --hard origin/main
-            npm install
-            npm install --prefix backend
-            npm install --prefix frontend
-            pm2 restart ${{ vars.PM2_APP_NAME }} || pm2 start npm --name ${{ vars.PM2_APP_NAME }} -- start
-            pm2 save
