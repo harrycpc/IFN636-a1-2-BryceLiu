@@ -6,6 +6,12 @@ This project is a full-stack MERN-based Car Rental Booking System. It extends th
 
 The system allows users to sign up and log in, browse available cars, view car details, create bookings, view their own bookings, update existing bookings, and cancel bookings. The project also includes GitHub version control, GitHub Actions for CI, and deployment preparation for AWS EC2.
 
+## Public URL
+
+The deployed application can be accessed at the following public URL:
+
+http://13.239.239.57
+
 ## Tech Stack
 
 - Frontend: React.js
