@@ -12,6 +12,7 @@ const Navbar = () => {
 
   const displayName =
     user?.name || user?.username || user?.email || 'User';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
@@ -34,13 +35,28 @@ const Navbar = () => {
               </Link>
 
               <Link
-                to="/bookings"
+                to={user.role === 'admin' ? '/admin/bookings' : '/bookings'}
                 className="text-gray-700 hover:text-purple-600 font-medium"
               >
-                My Bookings
+                {user.role === 'admin' ? 'Manage Bookings' : 'My Bookings'}
               </Link>
 
-              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-full">
+              {user.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="text-gray-700 hover:text-purple-600 font-medium"
+                >
+                  Admin
+                </Link>
+              )}
+
+              <span
+                className={`text-sm px-3 py-2 rounded-full ${
+                  isAdmin
+                    ? 'text-purple-700 bg-purple-100 border border-purple-200'
+                    : 'text-gray-500 bg-gray-100'
+                }`}
+              >
                 Hi, {displayName}
               </span>
 

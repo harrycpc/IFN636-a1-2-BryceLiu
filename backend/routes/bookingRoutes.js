@@ -4,15 +4,20 @@ const router = express.Router();
 const {
   createBooking,
   getBookings,
+  getAllBookings,
   getBookingById,
   updateBooking,
+  updateBookingStatus,
   deleteBooking,
 } = require("../controllers/bookingController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { admin } = require("../middleware/adminMiddleware");
 
 router.post("/", protect, createBooking);
 router.get("/", protect, getBookings);
+router.get("/admin/all", protect, admin, getAllBookings);
+router.patch("/:id/status", protect, admin, updateBookingStatus);
 router.get("/:id", protect, getBookingById);
 router.put("/:id", protect, updateBooking);
 router.delete("/:id", protect, deleteBooking);

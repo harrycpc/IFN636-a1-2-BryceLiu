@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import ReviewForm from '../components/ReviewForm';
 
 const MyBookings = () => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [reviewedBookings, setReviewedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,11 +15,21 @@ const MyBookings = () => {
       try {
         setLoading(true);
 
-        const response = await axiosInstance.get('/api/bookings', {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
+        const headers = {
+          Authorization: `Bearer ${user.token}`,
+        };
+
+        const [bookingsResponse, reviewsResponse] = await Promise.all([
+          axiosInstance.get('/api/bookings', { headers }),
+          axiosInstance.get('/api/reviews/my', { headers }),
+        ]);
+
+        const response = bookingsResponse;
+        const reviewedBookingIds = reviewsResponse.data.map((review) =>
+          String(review.bookingId)
+        );
+
+        setReviewedBookings(reviewedBookingIds);
 
         const sortedBookings = [...response.data].sort(
           (a, b) => new Date(b.createdAt || b.pickupDate) - new Date(a.createdAt || a.pickupDate)
@@ -84,6 +96,10 @@ const MyBookings = () => {
     }
 
     return 'bg-gray-100 text-gray-700';
+  };
+
+  const handleReviewSubmitted = (bookingId) => {
+    setReviewedBookings((prev) => [...prev, bookingId]);
   };
 
   return (
@@ -234,6 +250,16 @@ const MyBookings = () => {
                       </button>
                     </div>
                   </div>
+
+                  {booking.bookingStatus === 'completed' && !reviewedBookings.includes(booking._id) && (
+                    <ReviewForm booking={booking} onSubmitted={handleReviewSubmitted} />
+                  )}
+
+                  {reviewedBookings.includes(booking._id) && (
+                    <p className="mt-4 border-t border-gray-100 pt-4 text-sm text-green-700">
+                      Review submitted for this booking.
+                    </p>
+                  )}
                 </div>
               );
             })}

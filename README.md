@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-This project is a full-stack MERN-based Car Rental Booking System. It extends the starter project into a CRUD application with booking management features.
+This project is a full-stack MERN-based Car Rental Booking System. It extends the starter project into a CRUD application with booking management, admin fleet management, and car review/rating features.
 
-The system allows users to sign up and log in, browse available cars, view car details, create bookings, view their own bookings, update existing bookings, and cancel bookings. The project also includes GitHub version control, GitHub Actions for CI, and deployment preparation for AWS EC2.
+The system allows users to sign up and log in, browse available cars, view car details, create bookings, view their own bookings, update existing bookings, cancel bookings, and review completed rentals. Admin users can manage cars, view all bookings, and update booking status. The project also includes GitHub version control, GitHub Actions for CI, and deployment preparation for AWS EC2.
 
 ## Public URL
 
@@ -29,15 +29,31 @@ http://13.239.239.57
 - User signup and login
 - Browse available cars
 - View car details
-- Create a booking
+- Create a booking only when the selected car is available
 - View personal bookings
 - Update an existing booking
 - Cancel a booking
+- Submit a 1-5 star rating and written review after a booking is marked as completed
+- View car average ratings and customer reviews
+- Delete their own reviews
+
+### Admin Features
+- Admin login with role-based access control
+- Admin dashboard with total cars, active bookings, and total revenue
+- Manage cars from the Browse Cars screen
+- Add new cars
+- Update car details, including availability, seats, transmission, and image
+- Delete cars after confirmation
+- View all customer bookings
+- Update booking status to `pending`, `confirmed`, `cancelled`, or `completed`
+- Mark bookings as `completed` so customers can submit reviews
 
 ### System Features
 - MongoDB database integration
 - Real car images displayed in the system
 - Backend CRUD operations for booking management
+- Review and rating API with automatic car average rating updates
+- Role-based admin middleware for protected admin routes
 - GitHub Actions workflow for backend testing
 - Deployment support for AWS EC2
 
@@ -87,6 +103,37 @@ To make testing easier, the following demo account can be used after the project
 - Password: `test123456`
 
 This account is provided for demonstration and testing purposes only.
+
+## Demo Admin Account
+
+The following admin account can be used to test the admin dashboard and fleet management workflow:
+
+- Email: `admin@admin.com`
+- Password: `admin123456`
+
+Admin users are redirected to the Admin Dashboard after login. Admin users cannot create bookings or submit reviews.
+
+## Review and Rating Workflow
+
+Reviews are only available for normal users, not admin users. A customer can submit a review only after an admin changes the booking status to `completed`.
+
+Typical workflow:
+
+1. A user creates a booking for an available car.
+2. An admin opens Manage Bookings and updates the booking status.
+3. When the booking status becomes `completed`, the user can submit a star rating and comment from My Bookings.
+4. The car detail page displays all reviews and the average rating.
+5. A user can delete their own review.
+
+## Admin Car Management Workflow
+
+Admin users manage cars from the Browse Cars screen:
+
+- `Manage Cars` on the Admin Dashboard opens the Browse Cars screen.
+- `Add Car` opens a form for adding a new car.
+- `View Details and Modify` opens the update form for the selected car.
+- `Delete Car` asks for confirmation before deleting the car.
+- Unavailable cars are shown with a red availability badge and cannot be booked by users.
 
 
 ## How to Run Locally

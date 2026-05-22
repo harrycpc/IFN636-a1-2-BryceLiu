@@ -44,7 +44,18 @@ const carSchema = new mongoose.Schema(
     image: {
       type: String,
       default: "/images/default-car.png",
-},
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );
