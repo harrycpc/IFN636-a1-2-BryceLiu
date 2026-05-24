@@ -2,7 +2,7 @@ export const fmt$ = (n) => {
   if (n === null || n === undefined || n === '') return '$0';
   const v = Number(n);
   if (!isFinite(v)) return '$0';
-  return '$' + v.toLocaleString('en-AU', { maximumFractionDigits: 0 });
+  return '$' + v.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 export const fmtDate = (d) => {

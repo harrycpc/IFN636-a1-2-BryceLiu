@@ -11,6 +11,7 @@ const CarDetails = () => {
   const navigate = useNavigate();
   const [car, setCar] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [pricingInfo, setPricingInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const isAdmin = user?.role === 'admin';
 
@@ -21,8 +22,12 @@ const CarDetails = () => {
           axiosInstance.get(`/api/cars/${id}`),
           axiosInstance.get(`/api/reviews/car/${id}`),
         ]);
+        // fetch public pricing rules for display
+        const pricingResponse = await axiosInstance.get('/api/pricing/public');
+
         setCar(carResponse.data);
         setReviews(reviewsResponse.data);
+        setPricingInfo(pricingResponse.data);
       } catch (error) {
         setCar(null);
       } finally {
@@ -133,6 +138,26 @@ const CarDetails = () => {
               <p>{car.description || 'No description provided.'}</p>
             </div>
           </div>
+
+            {pricingInfo && (
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-3">Pricing Info</h2>
+                    <p className="text-gray-700 mb-2">Base price: <span className="font-semibold">${car.pricePerDay}/day</span></p>
+                    <div className="mb-2">
+                        <p className="text-gray-700 font-medium">Long-stay discounts:</p>
+                        {pricingInfo.longStayRules.length === 0 ? (
+                            <p className="text-gray-500">No long-stay discounts configured.</p>
+                        ) : (
+                            <ul className="text-gray-700 list-disc list-inside">
+                                {pricingInfo.longStayRules.map((r) => (
+                                    <li key={r._id}>{r.minDays}+ days: {r.discountRate}%</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                    <p className="text-gray-700">Weekend surcharge (Fri–Sun): <span className="font-semibold">{pricingInfo.weekendSurchargeRate}%</span></p>
+                </div>
+            )}
 
           <div className="detail-card book-cta">
             <div className="book-cta-head">

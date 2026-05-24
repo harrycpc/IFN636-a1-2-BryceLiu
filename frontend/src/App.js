@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageCars from './pages/ManageCars';
 import ManageBookings from './pages/ManageBookings';
+import AdminPricingSettings from './pages/AdminPricingSettings';
 import { useAuth } from './context/AuthContext';
 
 const Shell = ({ children }) => {
@@ -124,6 +125,16 @@ function App() {
               )
             }
           />
+            <Route
+                path="/admin/pricing"
+                element={
+                    isAdmin ? (
+                        <AdminPricingSettings />
+                    ) : (
+                        <Navigate to={user ? '/cars' : '/login'} replace />
+                    )
+                }
+            />
           <Route
             path="/admin/bookings"
             element={

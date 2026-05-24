@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import { getPublicPricing } from '../api/pricingApi';
+import { calculateEstimate } from '../utils/pricing';
 import Icon from '../components/Icon';
 import { fmt$, fmtDate, daysBetween } from '../utils/format';
 import { LOCATIONS } from '../utils/constants';
@@ -15,13 +17,18 @@ const CreateBooking = () => {
   const carId = searchParams.get('carId') || '';
   const [selectedCar, setSelectedCar] = useState(null);
 
-  const [form, setForm] = useState({
+  // Single source of truth for form inputs + estimate data
+  const [formData, setFormData] = useState({
     pickupLocation: '',
     dropoffLocation: '',
     pickupDate: '',
     returnDate: '',
+    // estimate fields (populated by pricing API)
+    totalPrice: 0,
+    breakdown: null,
   });
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  // Helper to update single-field on formData
+  const set = (k, v) => setFormData((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
     if (!carId) return;
@@ -37,16 +44,39 @@ const CreateBooking = () => {
   }, [carId]);
 
   const days = useMemo(
-    () => daysBetween(form.pickupDate, form.returnDate),
-    [form.pickupDate, form.returnDate]
+    () => daysBetween(formData.pickupDate, formData.returnDate),
+    [formData.pickupDate, formData.returnDate]
   );
-  const totalPrice = days * Number(selectedCar?.pricePerDay || 0);
+
+    const dailyPrice = useMemo(() => {
+        return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
+    }, [selectedCar]);
+
+    useEffect(() => {
+            const updateEstimate = async () => {
+              const estimated = days * dailyPrice;
+
+              // fetch public pricing rules once and compute breakdown for display
+              try {
+                const pricing = await getPublicPricing();
+                // use current form dates for estimate
+                const estimate = calculateEstimate(dailyPrice, formData.pickupDate, formData.returnDate, pricing.longStayRules, pricing.weekendSurchargeRate);
+                // Preserve other form fields while writing estimate
+                setFormData((prev) => ({ ...prev, totalPrice: estimate.total, breakdown: estimate.breakdown }));
+              } catch (err) {
+                // fallback to basic calculation
+                setFormData((prev) => ({ ...prev, totalPrice: estimated }));
+              }
+            };
+
+        updateEstimate();
+    }, [days, dailyPrice]);
 
   const canSubmit =
-    form.pickupLocation &&
-    form.dropoffLocation &&
-    form.pickupDate &&
-    form.returnDate &&
+    formData.pickupLocation &&
+    formData.dropoffLocation &&
+    formData.pickupDate &&
+    formData.returnDate &&
     days > 0 &&
     carId;
 
@@ -58,11 +88,12 @@ const CreateBooking = () => {
         '/api/bookings',
         {
           carId,
-          pickupLocation: form.pickupLocation,
-          dropoffLocation: form.dropoffLocation,
-          pickupDate: form.pickupDate,
-          returnDate: form.returnDate,
-          totalPrice: Number(totalPrice),
+          pickupLocation: formData.pickupLocation,
+          dropoffLocation: formData.dropoffLocation,
+          pickupDate: formData.pickupDate,
+          returnDate: formData.returnDate,
+          // prefer the estimate if available, otherwise fall back to base total
+          totalPrice: Number(formData.totalPrice),
           bookingStatus: 'pending',
         },
         { headers: { Authorization: `Bearer ${user.token}` } }
@@ -86,6 +117,12 @@ const CreateBooking = () => {
       </main>
     );
   }
+
+  // breakdown visibility helpers: only show breakdown if there's any surcharge or discount
+  const _breakdown = formData.breakdown || null;
+  const hasSurcharge = Boolean(_breakdown && Number(_breakdown.weekend?.surcharge || 0) > 0);
+  const hasDiscount = Boolean(_breakdown && Number(_breakdown.discount?.amount || 0) > 0);
+  const showBreakdown = Boolean(_breakdown && (hasSurcharge || hasDiscount));
 
   return (
     <main className="container">
@@ -127,7 +164,7 @@ const CreateBooking = () => {
             <label>Pickup Location</label>
             <select
               className="input"
-              value={form.pickupLocation}
+              value={formData.pickupLocation}
               onChange={(e) => set('pickupLocation', e.target.value)}
             >
               <option value="">Select pickup location</option>
@@ -141,7 +178,7 @@ const CreateBooking = () => {
             <label>Dropoff Location</label>
             <select
               className="input"
-              value={form.dropoffLocation}
+              value={formData.dropoffLocation}
               onChange={(e) => set('dropoffLocation', e.target.value)}
             >
               <option value="">Select dropoff location</option>
@@ -158,7 +195,7 @@ const CreateBooking = () => {
                 className="input"
                 type="date"
                 min={today}
-                value={form.pickupDate}
+                value={formData.pickupDate}
                 onChange={(e) => set('pickupDate', e.target.value)}
               />
             </div>
@@ -167,8 +204,8 @@ const CreateBooking = () => {
               <input
                 className="input"
                 type="date"
-                min={form.pickupDate || today}
-                value={form.returnDate}
+                min={formData.pickupDate || today}
+                value={formData.returnDate}
                 onChange={(e) => set('returnDate', e.target.value)}
               />
             </div>
@@ -179,14 +216,15 @@ const CreateBooking = () => {
               <label>Rental Days</label>
               <input className="input is-readonly" value={days} readOnly />
             </div>
-            <div className="field-stack">
-              <label>Total Price</label>
-              <input
-                className="input is-readonly"
-                value={totalPrice ? fmt$(totalPrice) : '—'}
-                readOnly
-              />
-            </div>
+              <div className="field-stack">
+                <label>Total Price</label>
+                <input
+                  className="input is-readonly"
+                  // show authoritative total without extra rounding/formatting
+                  value={formData.totalPrice ? fmt$(formData.totalPrice) : '—'}
+                  readOnly
+                />
+              </div>
           </div>
 
           <button type="submit" className="btn-primary" disabled={!canSubmit}>
@@ -210,24 +248,27 @@ const CreateBooking = () => {
               <span>Transmission</span>
               <b>{selectedCar.transmission}</b>
             </div>
+
+              {/* price estimate card removed from here - breakdown now shown inside Total Price row */}
+
             <div className="row">
               <span>Pickup Location</span>
-              <b>{form.pickupLocation || 'Not selected'}</b>
+              <b>{formData.pickupLocation || 'Not selected'}</b>
             </div>
             <div className="row">
               <span>Dropoff Location</span>
-              <b>{form.dropoffLocation || 'Not selected'}</b>
+              <b>{formData.dropoffLocation || 'Not selected'}</b>
             </div>
             <div className="row">
               <span>Pickup Date</span>
               <b>
-                {form.pickupDate ? fmtDate(form.pickupDate) : 'Not selected'}
+                {formData.pickupDate ? fmtDate(formData.pickupDate) : 'Not selected'}
               </b>
             </div>
             <div className="row">
               <span>Return Date</span>
               <b>
-                {form.returnDate ? fmtDate(form.returnDate) : 'Not selected'}
+                {formData.returnDate ? fmtDate(formData.returnDate) : 'Not selected'}
               </b>
             </div>
             <div className="row">
@@ -238,10 +279,41 @@ const CreateBooking = () => {
               <span>Price Per Day</span>
               <b>{fmt$(selectedCar.pricePerDay)}</b>
             </div>
-            <div className="row total">
+
+            {/* Price breakdown: show components first, then Total Price row */}
+            {showBreakdown && (
+                <>
+                  {/* Always show base when any surcharge/discount present */}
+                  <div className="row breakdown-start">
+                    <span>Base</span>
+                    <b>{fmt$(_breakdown.base)}</b>
+                  </div>
+
+                  {/* Conditionally show weekend surcharge only when > 0 */}
+                  {hasSurcharge && (
+                      <div className="row">
+                        <span>Weekend surcharge ({_breakdown.weekend.rate}%)</span>
+                        <b>+ {fmt$(_breakdown.weekend.surcharge)}</b>
+                      </div>
+                  )}
+
+                  {/* Conditionally show long-stay discount only when > 0 */}
+                  {hasDiscount && (
+                      <div className="row">
+                        <span>Long-stay discount ({_breakdown.discount.rate}%)</span>
+                        <b>- {fmt$(_breakdown.discount.amount)}</b>
+                      </div>
+                  )}
+                </>
+            )}
+
+            <div className={showBreakdown ? "row breakdown-total" : "row total"}>
               <span>Total Price</span>
-              <b>{totalPrice ? fmt$(totalPrice) : 'Not calculated'}</b>
+              <div>
+                <b>{formData.totalPrice ? fmt$(formData.totalPrice) : 'Not calculated'}</b>
+              </div>
             </div>
+
             <div className="row status">
               <span>Status</span>
               <span className="status-pill pending">pending</span>
