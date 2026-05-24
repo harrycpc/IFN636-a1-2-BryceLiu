@@ -3,6 +3,7 @@ const sinon = require("sinon");
 const mongoose = require("mongoose");
 
 const Booking = require("../models/Booking");
+const Car = require("../models/Car");
 const {
   createBooking,
   getBookings,
@@ -21,7 +22,7 @@ describe("Booking Controller", () => {
   describe("createBooking", () => {
     it("should create a new booking successfully", async () => {
       const req = {
-        user: { id: new mongoose.Types.ObjectId().toString() },
+        user: { id: new mongoose.Types.ObjectId().toString(), role: "user" },
         body: {
           pickupLocation: "Brisbane Airport",
           dropoffLocation: "Gold Coast",
@@ -39,6 +40,7 @@ describe("Booking Controller", () => {
         userId: req.user.id,
       };
 
+      sinon.stub(Car, "findById").resolves({ availability: "Available" });
       sinon.stub(Booking, "create").resolves(createdBooking);
 
       const res = {
@@ -54,7 +56,7 @@ describe("Booking Controller", () => {
 
     it("should return 500 if an error occurs during booking creation", async () => {
       const req = {
-        user: { id: new mongoose.Types.ObjectId().toString() },
+        user: { id: new mongoose.Types.ObjectId().toString(), role: "user" },
         body: {
           pickupLocation: "Brisbane Airport",
           dropoffLocation: "Gold Coast",
@@ -66,6 +68,7 @@ describe("Booking Controller", () => {
         },
       };
 
+      sinon.stub(Car, "findById").resolves({ availability: "Available" });
       sinon.stub(Booking, "create").rejects(new Error("Database error"));
 
       const res = {

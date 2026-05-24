@@ -173,17 +173,32 @@ const EditBooking = () => {
             </p>
 
             {selectedCar && (
-              <div className="mb-6 bg-purple-50 border border-purple-100 rounded-2xl p-5">
-                <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                  Selected Car
-                </h2>
-                <p className="text-gray-700">
-                  <span className="font-medium">Car:</span>{' '}
-                  {selectedCar.name} ({selectedCar.type})
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-medium">Price per day:</span> ${dailyPrice}
-                </p>
+              <div className="mb-6 bg-purple-50 border border-purple-100 rounded-2xl p-5 flex gap-4 items-center">
+                <div className="w-28 h-20 bg-white rounded-xl overflow-hidden border border-purple-100 flex items-center justify-center">
+                  <img
+                    src={selectedCar.image || '/images/default-car.png'}
+                    alt={selectedCar.name}
+                    className="w-full h-full object-contain p-2"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                    Selected Car
+                  </h2>
+                  <p className="text-gray-700">
+                    <span className="font-medium">Car:</span>{' '}
+                    {selectedCar.name} ({selectedCar.type})
+                  </p>
+                  <p className="text-gray-700">
+                    <span className="font-medium">Price per day:</span> ${dailyPrice}
+                  </p>
+                  <p className="text-gray-700">
+                    <span className="font-medium">Seats:</span> {selectedCar.seats}
+                  </p>
+                  <p className="text-gray-700">
+                    <span className="font-medium">Transmission:</span> {selectedCar.transmission}
+                  </p>
+                </div>
               </div>
             )}
 
@@ -296,7 +311,33 @@ const EditBooking = () => {
               Updated Summary
             </h2>
 
+            {selectedCar && (
+              <div className="mb-6">
+                <div className="w-full h-64 bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex items-center justify-center">
+                  <img
+                    src={selectedCar.image || '/images/default-car.png'}
+                    alt={selectedCar.name}
+                    className="w-full h-full object-contain p-4"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 text-gray-700">
+              {selectedCar && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-500">Seats</p>
+                    <p className="font-semibold">{selectedCar.seats}</p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-500">Transmission</p>
+                    <p className="font-semibold">{selectedCar.transmission}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-sm text-gray-500">Pickup Location</p>
                 <p className="font-semibold">
