@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
+import Brand from '../components/Brand';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -8,94 +9,109 @@ const Register = () => {
     email: '',
     password: '',
   });
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  const set = (k, v) => {
+    setFormData((f) => ({ ...f, [k]: v }));
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name || !formData.email || !formData.password) {
+      setError('All fields are required.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) {
+      setError('Enter a valid email.');
+      return;
+    }
     try {
       await axiosInstance.post('/api/auth/register', formData);
       alert('Registration successful. Please log in.');
       navigate('/login');
-    } catch (error) {
-      alert('Registration failed. Please try again.');
+    } catch (err) {
+      const serverMessage =
+        err.response?.data?.errors?.join(', ') ||
+        err.response?.data?.message;
+      setError(serverMessage || err.message || 'Registration failed.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm p-8 md:p-10">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Sign Up</h1>
-          <p className="text-gray-500 mt-2">
-            Create your account to start using the system
+    <main className="auth-shell">
+      <section className="auth-form-wrap">
+        <div className="auth-form">
+          <div className="auth-brandline">
+            <Brand />
+          </div>
+
+          <h1 className="h-display">Sign Up</h1>
+          <p className="sub">Create your account to start using the system.</p>
+
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="field-stack">
+              <label>Name</label>
+              <input
+                className="input"
+                placeholder="Enter your name"
+                value={formData.name}
+                onChange={(e) => set('name', e.target.value)}
+              />
+            </div>
+            <div className="field-stack">
+              <label>Email</label>
+              <input
+                className="input"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={(e) => set('email', e.target.value)}
+              />
+            </div>
+            <div className="field-stack">
+              <label>Password</label>
+              <input
+                className="input"
+                type="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={(e) => set('password', e.target.value)}
+              />
+            </div>
+            {error && <p className="form-error">{error}</p>}
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ marginTop: 8 }}
+            >
+              Sign Up
+            </button>
+          </form>
+
+          <p className="auth-foot">
+            Already have an account? <Link to="/login">Login</Link>
           </p>
         </div>
+      </section>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+      <aside className="auth-side">
+        <div className="auth-side-pattern" aria-hidden="true"></div>
+        <div className="auth-side-content">
+          <p className="kicker">Car Rental Booking</p>
+          <div className="auth-marquee">
+            Join a community of <em>students and renters.</em>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+          <div className="auth-quote">
+            <p>
+              "Two minutes to register, and I had keys in my hand by lunch."
+            </p>
+            <b>— Mei T. · Brisbane</b>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-purple-500 text-white py-3 rounded-full font-medium hover:bg-purple-600 transition"
-          >
-            Sign Up
-          </button>
-        </form>
-
-        <p className="text-center text-gray-500 mt-6">
-          Already have an account?{' '}
-          <Link
-            to="/login"
-            className="text-purple-600 font-medium hover:underline"
-          >
-            Login
-          </Link>
-        </p>
-      </div>
-    </div>
+        </div>
+      </aside>
+    </main>
   );
 };
 
