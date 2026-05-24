@@ -3,13 +3,16 @@ const bookingFacade = require('../facades/bookingServiceFacade');
 // Create booking
 const createBooking = async (req, res) => {
     try {
+        if (req.user.role === "admin") {
+          return res.status(403).json({ message: "Admins cannot create bookings" });
+        }
         const { carId, pickupDate, returnDate, pickupLocation, dropoffLocation } = req.body;
         const booking = await bookingFacade.book(
             req.user.id, carId, pickupDate, returnDate, pickupLocation, dropoffLocation
         );
         res.status(201).json(booking);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -42,7 +45,10 @@ const getBookingById = async (req, res) => {
         if (error.message === 'Access denied') {
             return res.status(403).json({ message: error.message });
         }
-        res.status(404).json({ message: error.message });
+        if (error.message === 'Booking not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -55,7 +61,10 @@ const updateBooking = async (req, res) => {
         if (error.message === 'Access denied') {
             return res.status(403).json({ message: error.message });
         }
-        res.status(404).json({ message: error.message });
+        if (error.message === 'Booking not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -68,7 +77,10 @@ const deleteBooking = async (req, res) => {
         if (error.message === 'Access denied') {
             return res.status(403).json({ message: error.message });
         }
-        res.status(404).json({ message: error.message });
+        if (error.message === 'Booking not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -79,7 +91,7 @@ const updateBookingStatus = async (req, res) => {
         const updatedBooking = await bookingFacade.updateBookingStatus(req.params.id, bookingStatus);
         res.status(200).json(updatedBooking);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
 

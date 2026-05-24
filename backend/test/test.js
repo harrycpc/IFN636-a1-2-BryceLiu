@@ -2,8 +2,7 @@ const chai = require("chai");
 const sinon = require("sinon");
 const mongoose = require("mongoose");
 
-const Booking = require("../models/Booking");
-const Car = require("../models/Car");
+const bookingFacade = require("../facades/bookingServiceFacade");
 const {
   createBooking,
   getBookings,
@@ -40,8 +39,7 @@ describe("Booking Controller", () => {
         userId: req.user.id,
       };
 
-      sinon.stub(Car, "findById").resolves({ availability: "Available" });
-      sinon.stub(Booking, "create").resolves(createdBooking);
+      sinon.stub(bookingFacade, "book").resolves(createdBooking);
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -68,8 +66,7 @@ describe("Booking Controller", () => {
         },
       };
 
-      sinon.stub(Car, "findById").resolves({ availability: "Available" });
-      sinon.stub(Booking, "create").rejects(new Error("Database error"));
+      sinon.stub(bookingFacade, "book").rejects(new Error("Database error"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -104,8 +101,7 @@ describe("Booking Controller", () => {
         },
       ];
 
-      const populateStub = sinon.stub().resolves(bookings);
-      sinon.stub(Booking, "find").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getUserBookings").resolves(bookings);
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -125,8 +121,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      const populateStub = sinon.stub().rejects(new Error("Database error"));
-      sinon.stub(Booking, "find").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getUserBookings").rejects(new Error("Database error"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -148,9 +143,7 @@ describe("Booking Controller", () => {
       const booking = {
         _id: bookingId,
         pickupLocation: "Brisbane",
-        userId: {
-          toString: () => userId,
-        },
+        userId,
       };
 
       const req = {
@@ -158,8 +151,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      const populateStub = sinon.stub().resolves(booking);
-      sinon.stub(Booking, "findById").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getBookingById").resolves(booking);
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -181,8 +173,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      const populateStub = sinon.stub().resolves(null);
-      sinon.stub(Booking, "findById").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getBookingById").rejects(new Error("Booking not found"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -197,24 +188,14 @@ describe("Booking Controller", () => {
 
     it("should return 403 if booking does not belong to the current user", async () => {
       const userId = new mongoose.Types.ObjectId().toString();
-      const otherUserId = new mongoose.Types.ObjectId().toString();
       const bookingId = new mongoose.Types.ObjectId().toString();
-
-      const booking = {
-        _id: bookingId,
-        pickupLocation: "Brisbane",
-        userId: {
-          toString: () => otherUserId,
-        },
-      };
 
       const req = {
         params: { id: bookingId },
         user: { id: userId },
       };
 
-      const populateStub = sinon.stub().resolves(booking);
-      sinon.stub(Booking, "findById").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getBookingById").rejects(new Error("Access denied"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -236,8 +217,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      const populateStub = sinon.stub().rejects(new Error("Database error"));
-      sinon.stub(Booking, "findById").returns({ populate: populateStub });
+      sinon.stub(bookingFacade, "getBookingById").rejects(new Error("Database error"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -256,13 +236,6 @@ describe("Booking Controller", () => {
       const userId = new mongoose.Types.ObjectId().toString();
       const bookingId = new mongoose.Types.ObjectId().toString();
 
-      const existingBooking = {
-        _id: bookingId,
-        userId: {
-          toString: () => userId,
-        },
-      };
-
       const updatedBooking = {
         _id: bookingId,
         pickupLocation: "Updated Location",
@@ -275,8 +248,7 @@ describe("Booking Controller", () => {
         body: { pickupLocation: "Updated Location" },
       };
 
-      sinon.stub(Booking, "findById").resolves(existingBooking);
-      sinon.stub(Booking, "findByIdAndUpdate").resolves(updatedBooking);
+      sinon.stub(bookingFacade, "updateBooking").resolves(updatedBooking);
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -299,7 +271,7 @@ describe("Booking Controller", () => {
         body: { pickupLocation: "Updated Location" },
       };
 
-      sinon.stub(Booking, "findById").resolves(null);
+      sinon.stub(bookingFacade, "updateBooking").rejects(new Error("Booking not found"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -314,15 +286,7 @@ describe("Booking Controller", () => {
 
     it("should return 403 if booking to update does not belong to the current user", async () => {
       const userId = new mongoose.Types.ObjectId().toString();
-      const otherUserId = new mongoose.Types.ObjectId().toString();
       const bookingId = new mongoose.Types.ObjectId().toString();
-
-      const existingBooking = {
-        _id: bookingId,
-        userId: {
-          toString: () => otherUserId,
-        },
-      };
 
       const req = {
         params: { id: bookingId },
@@ -330,7 +294,7 @@ describe("Booking Controller", () => {
         body: { pickupLocation: "Updated Location" },
       };
 
-      sinon.stub(Booking, "findById").resolves(existingBooking);
+      sinon.stub(bookingFacade, "updateBooking").rejects(new Error("Access denied"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -353,7 +317,7 @@ describe("Booking Controller", () => {
         body: { pickupLocation: "Updated Location" },
       };
 
-      sinon.stub(Booking, "findById").rejects(new Error("Database error"));
+      sinon.stub(bookingFacade, "updateBooking").rejects(new Error("Database error"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -372,20 +336,12 @@ describe("Booking Controller", () => {
       const userId = new mongoose.Types.ObjectId().toString();
       const bookingId = new mongoose.Types.ObjectId().toString();
 
-      const existingBooking = {
-        _id: bookingId,
-        userId: {
-          toString: () => userId,
-        },
-      };
-
       const req = {
         params: { id: bookingId },
         user: { id: userId },
       };
 
-      sinon.stub(Booking, "findById").resolves(existingBooking);
-      sinon.stub(Booking, "findByIdAndDelete").resolves();
+      sinon.stub(bookingFacade, "deleteBooking").resolves({ message: "Booking deleted successfully" });
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -407,7 +363,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      sinon.stub(Booking, "findById").resolves(null);
+      sinon.stub(bookingFacade, "deleteBooking").rejects(new Error("Booking not found"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -422,22 +378,14 @@ describe("Booking Controller", () => {
 
     it("should return 403 if booking to delete does not belong to the current user", async () => {
       const userId = new mongoose.Types.ObjectId().toString();
-      const otherUserId = new mongoose.Types.ObjectId().toString();
       const bookingId = new mongoose.Types.ObjectId().toString();
-
-      const existingBooking = {
-        _id: bookingId,
-        userId: {
-          toString: () => otherUserId,
-        },
-      };
 
       const req = {
         params: { id: bookingId },
         user: { id: userId },
       };
 
-      sinon.stub(Booking, "findById").resolves(existingBooking);
+      sinon.stub(bookingFacade, "deleteBooking").rejects(new Error("Access denied"));
 
       const res = {
         status: sinon.stub().returnsThis(),
@@ -459,7 +407,7 @@ describe("Booking Controller", () => {
         user: { id: userId },
       };
 
-      sinon.stub(Booking, "findById").rejects(new Error("Database error"));
+      sinon.stub(bookingFacade, "deleteBooking").rejects(new Error("Database error"));
 
       const res = {
         status: sinon.stub().returnsThis(),
