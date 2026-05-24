@@ -7,8 +7,9 @@ const {
   deleteReview,
 } = require("../controllers/reviewController");
 const { protect } = require("../middleware/authMiddleware");
+const { validateCreateReview } = require("../middleware/validationMiddleware");
 
-router.post("/", protect, createReview);
+router.post("/", protect, validateCreateReview, createReview);
 router.get("/my", protect, getMyReviews);
 router.get("/car/:carId", getReviewsByCar);
 router.delete("/:id", protect, deleteReview);
