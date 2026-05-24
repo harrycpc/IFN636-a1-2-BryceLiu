@@ -1,33 +1,152 @@
-name: CI
+name: CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+
+# Don't cancel a mid-deploy run. Queue instead — pm2 reloads should never race.
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  backend-test:
+  # ─────────────────────────────────────────────────────────────
+  # 1. Tests — on GitHub-hosted runner, isolated from prod EC2s
+  # ─────────────────────────────────────────────────────────────
+  test:
+    name: Backend tests
     runs-on: ubuntu-latest
-    environment: production 
-
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./backend
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Set up Node.js
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. Deploy to EC2-A (first half of the ALB target group)
+  # ─────────────────────────────────────────────────────────────
+  deploy-a:
+    name: Deploy → EC2-A
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, ec2-a]
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Install backend dependencies
-        run: npm install
+        working-directory: ./backend
+        run: npm ci
 
-      - name: Run backend tests
-        run: npm test
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        # GitHub Actions sets CI=true, which makes CRA treat warnings as errors.
+        # Fix warnings rather than silencing.
+        run: npm run build
+
+      - name: Write backend .env from secrets
+        working-directory: ./backend
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        # Assemble .env line-by-line via printf so secret characters never reach
+        # a shell parser. Passing values through env: avoids template-time
+        # interpolation into the run-script.
+        run: |
+          {
+            printf 'MONGO_URI=%s\n'  "$MONGO_URI"
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+          } > .env
+          chmod 600 .env
+
+      - name: Reload services with pm2
+        run: |
+          pm2 reload all --update-env || pm2 restart all --update-env
+          pm2 save
+          pm2 status
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. Deploy to EC2-B — runs AFTER A succeeds (rolling)
+  # ─────────────────────────────────────────────────────────────
+  deploy-b:
+    name: Deploy → EC2-B
+    needs: deploy-a
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, ec2-b]
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Write backend .env from secrets
+        working-directory: ./backend
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          {
+            printf 'MONGO_URI=%s\n'  "$MONGO_URI"
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+          } > .env
+          chmod 600 .env
+
+      - name: Reload services with pm2
+        run: |
+          pm2 reload all --update-env || pm2 restart all --update-env
+          pm2 save
+          pm2 status
