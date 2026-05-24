@@ -481,6 +481,9 @@ textarea.input { resize: vertical; min-height: 80px; line-height: 1.5; }
 .summary-grid .row b { font-weight: 600; }
 .summary-grid .row.total { font-size: 16px; padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--ink); font-weight: 700; }
 .summary-grid .row.total b { font-weight: 700; }
+.summary-grid .row.breakdown-start { padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--ink); }
+.summary-grid .row.breakdown-total { font-size: 16px; border-top: 1px solid var(--line); font-weight: 700; }
+.summary-grid .row.breakdown-total b { font-weight: 700; }
 @media (max-width: 1000px) { .summary-card { position: static; } }
 
 /* ─────────────────────────────────────────────────────────────
