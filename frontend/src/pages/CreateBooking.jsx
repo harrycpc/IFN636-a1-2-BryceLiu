@@ -1,393 +1,255 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import Icon from '../components/Icon';
+import { fmt$, fmtDate, daysBetween } from '../utils/format';
+import { LOCATIONS } from '../utils/constants';
 
 const CreateBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const today = new Date().toISOString().slice(0, 10);
 
-  const locationOptions = [
-    'Brisbane',
-    'Gold Coast',
-    'Brisbane Airport',
-  ];
-
+  const carId = searchParams.get('carId') || '';
   const [selectedCar, setSelectedCar] = useState(null);
-  const [loadingCar, setLoadingCar] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     pickupLocation: '',
     dropoffLocation: '',
     pickupDate: '',
     returnDate: '',
-    totalPrice: 0,
-    bookingStatus: 'pending',
-    carId: searchParams.get('carId') || '',
   });
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
-    const fetchCarDetails = async () => {
-      if (!formData.carId) return;
-
+    if (!carId) return;
+    const fetchCar = async () => {
       try {
-        setLoadingCar(true);
-        const { data } = await axiosInstance.get(`/api/cars/${formData.carId}`);
+        const { data } = await axiosInstance.get(`/api/cars/${carId}`);
         setSelectedCar(data);
       } catch (error) {
         console.error('Failed to load car details:', error);
-      } finally {
-        setLoadingCar(false);
       }
     };
+    fetchCar();
+  }, [carId]);
 
-    fetchCarDetails();
-  }, [formData.carId]);
+  const days = useMemo(
+    () => daysBetween(form.pickupDate, form.returnDate),
+    [form.pickupDate, form.returnDate]
+  );
+  const totalPrice = days * Number(selectedCar?.pricePerDay || 0);
 
-  const dailyPrice = useMemo(() => {
-    return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
-  }, [selectedCar]);
+  const canSubmit =
+    form.pickupLocation &&
+    form.dropoffLocation &&
+    form.pickupDate &&
+    form.returnDate &&
+    days > 0 &&
+    carId;
 
-  const rentalDays = useMemo(() => {
-    if (!formData.pickupDate || !formData.returnDate) return 0;
-
-    const pickup = new Date(`${formData.pickupDate}T00:00:00`);
-    const dropoff = new Date(`${formData.returnDate}T00:00:00`);
-
-    const diffTime = dropoff - pickup;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays > 0 ? diffDays : 0;
-  }, [formData.pickupDate, formData.returnDate]);
-
-  useEffect(() => {
-    const calculatedTotal = rentalDays * dailyPrice;
-
-    setFormData((prev) => ({
-      ...prev,
-      totalPrice: calculatedTotal,
-    }));
-  }, [rentalDays, dailyPrice]);
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-
-    if (!formData.pickupLocation || !formData.dropoffLocation) {
-      alert('Please select both pickup and dropoff locations.');
-      return;
-    }
-
-    if (!formData.pickupDate || !formData.returnDate) {
-      alert('Please select both pickup and return dates.');
-      return;
-    }
-
-    if (rentalDays <= 0) {
-      alert('Return date must be after pickup date.');
-      return;
-    }
-
-    if (!formData.carId) {
-      alert('Car ID is missing.');
-      return;
-    }
-
+    if (!canSubmit) return;
     try {
       await axiosInstance.post(
         '/api/bookings',
         {
-          ...formData,
-          totalPrice: Number(formData.totalPrice),
+          carId,
+          pickupLocation: form.pickupLocation,
+          dropoffLocation: form.dropoffLocation,
+          pickupDate: form.pickupDate,
+          returnDate: form.returnDate,
+          totalPrice: Number(totalPrice),
+          bookingStatus: 'pending',
         },
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${user.token}` } }
       );
-
       alert('Booking created successfully.');
       navigate('/bookings');
     } catch (error) {
-      console.error(error);
-      alert('Failed to create booking.');
+      alert(error.response?.data?.message || 'Failed to create booking.');
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  if (!selectedCar) {
+    return (
+      <main className="container">
+        <button className="back-link" onClick={() => navigate('/cars')}>
+          <Icon name="arrow-left" size={16} stroke={2} /> Back to Browse Cars
+        </button>
+        <div className="empty-card">
+          <h3 className="h-display">Loading…</h3>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <Link to="/cars" className="text-purple-600 hover:underline">
-            ← Back to Browse Cars
-          </Link>
-        </div>
+    <main className="container">
+      <button className="back-link" onClick={() => navigate('/cars')}>
+        <Icon name="arrow-left" size={16} stroke={2} /> Back to Browse Cars
+      </button>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl shadow-sm p-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Create Booking
-            </h1>
-            <p className="text-gray-500 mb-8">
-              Enter your trip details to confirm the booking.
-            </p>
+      <div className="confirm-shell">
+        <form className="detail-card" onSubmit={submit} noValidate>
+          <h1 className="h-display confirm-title">Create Booking</h1>
+          <p className="confirm-sub">
+            Enter your trip details to confirm the booking.
+          </p>
 
-            {selectedCar && (
-              <div className="mb-6 bg-purple-50 border border-purple-100 rounded-2xl p-5 flex gap-4 items-center">
-                <div className="w-28 h-20 bg-white rounded-xl overflow-hidden border border-purple-100 flex items-center justify-center">
-                  <img
-                    src={selectedCar.image || '/images/default-car.png'}
-                    alt={selectedCar.name}
-                    className="w-full h-full object-contain p-2"
-                  />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                    Selected Car
-                  </h2>
-                  <p className="text-gray-700">
-                    <span className="font-medium">Car:</span>{' '}
-                    {selectedCar.name} ({selectedCar.type})
-                  </p>
-                  <p className="text-gray-700">
-                    <span className="font-medium">Price per day:</span> ${dailyPrice}
-                  </p>
-                  <p className="text-gray-700">
-                    <span className="font-medium">Seats:</span> {selectedCar.seats}
-                  </p>
-                  <p className="text-gray-700">
-                    <span className="font-medium">Transmission:</span> {selectedCar.transmission}
-                  </p>
-                </div>
+          <div className="selected-car">
+            <img src={selectedCar.image} alt={selectedCar.name} />
+            <div>
+              <h2>{selectedCar.name}</h2>
+              <div className="row">
+                <span>Type</span>
+                <b>{selectedCar.type}</b>
               </div>
-            )}
-
-            {loadingCar && (
-              <div className="mb-6 text-sm text-gray-500">
-                Loading car details...
+              <div className="row">
+                <span>Price per day</span>
+                <b>{fmt$(selectedCar.pricePerDay)}</b>
               </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pickup Location
-                </label>
-                <select
-                  name="pickupLocation"
-                  value={formData.pickupLocation}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                >
-                  <option value="">Select pickup location</option>
-                  {locationOptions.map((location) => (
-                    <option key={location} value={location}>
-                      {location}
-                    </option>
-                  ))}
-                </select>
+              <div className="row">
+                <span>Seats</span>
+                <b>{selectedCar.seats}</b>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dropoff Location
-                </label>
-                <select
-                  name="dropoffLocation"
-                  value={formData.dropoffLocation}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                >
-                  <option value="">Select dropoff location</option>
-                  {locationOptions.map((location) => (
-                    <option key={location} value={location}>
-                      {location}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pickup Date
-                  </label>
-                  <input
-                    type="date"
-                    name="pickupDate"
-                    min={today}
-                    value={formData.pickupDate}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Return Date
-                  </label>
-                  <input
-                    type="date"
-                    name="returnDate"
-                    min={formData.pickupDate || today}
-                    value={formData.returnDate}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rental Days
-                  </label>
-                  <input
-                    type="number"
-                    value={rentalDays}
-                    readOnly
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Price
-                  </label>
-                  <input
-                    type="number"
-                    name="totalPrice"
-                    value={formData.totalPrice}
-                    readOnly
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Car ID
-                </label>
-                <input
-                  type="text"
-                  name="carId"
-                  value={formData.carId}
-                  readOnly
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-purple-500 text-white py-3 rounded-full font-medium hover:bg-purple-600 transition"
-              >
-                Confirm Booking
-              </button>
-            </form>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm p-8 h-fit">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              Booking Summary
-            </h2>
-
-            {selectedCar && (
-              <div className="mb-6">
-                <div className="w-full h-64 bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex items-center justify-center">
-                  <img
-                    src={selectedCar.image || '/images/default-car.png'}
-                    alt={selectedCar.name}
-                    className="w-full h-full object-contain p-4"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4 text-gray-700">
-              {selectedCar && (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-500">Seats</p>
-                    <p className="font-semibold">{selectedCar.seats}</p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-500">Transmission</p>
-                    <p className="font-semibold">{selectedCar.transmission}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Pickup Location</p>
-                <p className="font-semibold">
-                  {formData.pickupLocation || 'Not selected'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Dropoff Location</p>
-                <p className="font-semibold">
-                  {formData.dropoffLocation || 'Not selected'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Pickup Date</p>
-                <p className="font-semibold">
-                  {formData.pickupDate || 'Not selected'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Return Date</p>
-                <p className="font-semibold">
-                  {formData.returnDate || 'Not selected'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Rental Days</p>
-                <p className="font-semibold">
-                  {rentalDays || 'Not calculated'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Price Per Day</p>
-                <p className="font-semibold">
-                  {dailyPrice ? `$${dailyPrice}` : 'Not available'}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-500">Total Price</p>
-                <p className="font-semibold">
-                  {formData.totalPrice ? `$${formData.totalPrice}` : 'Not calculated'}
-                </p>
-              </div>
-
-              <div className="bg-green-50 rounded-xl p-4">
-                <p className="text-sm text-green-600">Status</p>
-                <p className="font-semibold text-green-700 capitalize">
-                  {formData.bookingStatus}
-                </p>
+              <div className="row">
+                <span>Transmission</span>
+                <b>{selectedCar.transmission}</b>
               </div>
             </div>
           </div>
-        </div>
+
+          <div className="field-stack">
+            <label>Pickup Location</label>
+            <select
+              className="input"
+              value={form.pickupLocation}
+              onChange={(e) => set('pickupLocation', e.target.value)}
+            >
+              <option value="">Select pickup location</option>
+              {LOCATIONS.map((l) => (
+                <option key={l}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-stack">
+            <label>Dropoff Location</label>
+            <select
+              className="input"
+              value={form.dropoffLocation}
+              onChange={(e) => set('dropoffLocation', e.target.value)}
+            >
+              <option value="">Select dropoff location</option>
+              {LOCATIONS.map((l) => (
+                <option key={l}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-grid">
+            <div className="field-stack">
+              <label>Pickup Date</label>
+              <input
+                className="input"
+                type="date"
+                min={today}
+                value={form.pickupDate}
+                onChange={(e) => set('pickupDate', e.target.value)}
+              />
+            </div>
+            <div className="field-stack">
+              <label>Return Date</label>
+              <input
+                className="input"
+                type="date"
+                min={form.pickupDate || today}
+                value={form.returnDate}
+                onChange={(e) => set('returnDate', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="field-grid">
+            <div className="field-stack">
+              <label>Rental Days</label>
+              <input className="input is-readonly" value={days} readOnly />
+            </div>
+            <div className="field-stack">
+              <label>Total Price</label>
+              <input
+                className="input is-readonly"
+                value={totalPrice ? fmt$(totalPrice) : '—'}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="btn-primary" disabled={!canSubmit}>
+            Confirm Booking
+          </button>
+        </form>
+
+        <aside className="summary-card">
+          <h2 className="h-display">Booking Summary</h2>
+          <img
+            className="summary-img"
+            src={selectedCar.image}
+            alt={selectedCar.name}
+          />
+          <div className="summary-grid">
+            <div className="row">
+              <span>Seats</span>
+              <b>{selectedCar.seats}</b>
+            </div>
+            <div className="row">
+              <span>Transmission</span>
+              <b>{selectedCar.transmission}</b>
+            </div>
+            <div className="row">
+              <span>Pickup Location</span>
+              <b>{form.pickupLocation || 'Not selected'}</b>
+            </div>
+            <div className="row">
+              <span>Dropoff Location</span>
+              <b>{form.dropoffLocation || 'Not selected'}</b>
+            </div>
+            <div className="row">
+              <span>Pickup Date</span>
+              <b>
+                {form.pickupDate ? fmtDate(form.pickupDate) : 'Not selected'}
+              </b>
+            </div>
+            <div className="row">
+              <span>Return Date</span>
+              <b>
+                {form.returnDate ? fmtDate(form.returnDate) : 'Not selected'}
+              </b>
+            </div>
+            <div className="row">
+              <span>Rental Days</span>
+              <b>{days || 'Not calculated'}</b>
+            </div>
+            <div className="row">
+              <span>Price Per Day</span>
+              <b>{fmt$(selectedCar.pricePerDay)}</b>
+            </div>
+            <div className="row total">
+              <span>Total Price</span>
+              <b>{totalPrice ? fmt$(totalPrice) : 'Not calculated'}</b>
+            </div>
+            <div className="row status">
+              <span>Status</span>
+              <span className="status-pill pending">pending</span>
+            </div>
+          </div>
+        </aside>
       </div>
-    </div>
+    </main>
   );
 };
 

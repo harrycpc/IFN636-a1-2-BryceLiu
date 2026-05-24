@@ -1,43 +1,43 @@
-import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import AdminShell from '../components/AdminShell';
+import { fmt$, fmtDateShort } from '../utils/format';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [cars, setCars] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetch = async () => {
       try {
         const headers = { Authorization: `Bearer ${user.token}` };
-        const [carsResponse, bookingsResponse] = await Promise.all([
+        const [carsRes, bookingsRes] = await Promise.all([
           axiosInstance.get('/api/cars'),
           axiosInstance.get('/api/bookings/admin/all', { headers }),
         ]);
-
-        setCars(carsResponse.data);
-        setBookings(bookingsResponse.data);
+        setCars(carsRes.data);
+        setBookings(bookingsRes.data);
       } catch (error) {
         alert('Failed to load admin dashboard.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchDashboardData();
+    if (user) fetch();
   }, [user]);
 
   const stats = useMemo(() => {
-    const activeBookings = bookings.filter((booking) =>
-      ['pending', 'confirmed'].includes(booking.bookingStatus)
+    const activeBookings = bookings.filter((b) =>
+      ['pending', 'confirmed'].includes(b.bookingStatus)
     ).length;
     const totalRevenue = bookings
-      .filter((booking) => booking.bookingStatus !== 'cancelled')
-      .reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
-
+      .filter((b) => b.bookingStatus !== 'cancelled')
+      .reduce((sum, b) => sum + Number(b.totalPrice || 0), 0);
     return {
       totalCars: cars.length,
       activeBookings,
@@ -46,46 +46,123 @@ const AdminDashboard = () => {
   }, [cars, bookings]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-            <p className="text-gray-500 mt-1">Monitor fleet and booking activity</p>
-          </div>
-
-          <div className="flex gap-3">
-            <Link to="/cars" className="bg-purple-500 text-white px-5 py-3 rounded-full font-medium hover:bg-purple-600 transition">
-              Manage Cars
-            </Link>
-            <Link to="/admin/bookings" className="bg-white text-purple-700 px-5 py-3 rounded-full font-medium border border-purple-100 hover:bg-purple-50 transition">
-              Manage Bookings
-            </Link>
-          </div>
+    <AdminShell>
+      <div className="admin-head">
+        <div>
+          <h1 className="h-display">Admin Dashboard</h1>
+          <p className="sub">Monitor fleet and booking activity.</p>
         </div>
-
-        {loading ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-            <p className="text-gray-500">Loading admin data...</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-5">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <p className="text-sm text-gray-500">Total Cars</p>
-              <p className="text-4xl font-bold text-gray-800 mt-2">{stats.totalCars}</p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <p className="text-sm text-gray-500">Active Bookings</p>
-              <p className="text-4xl font-bold text-gray-800 mt-2">{stats.activeBookings}</p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <p className="text-sm text-gray-500">Total Revenue</p>
-              <p className="text-4xl font-bold text-gray-800 mt-2">${stats.totalRevenue}</p>
-            </div>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="btn-primary-sm"
+            onClick={() => navigate('/admin/cars')}
+          >
+            Manage Cars
+          </button>
+          <button
+            type="button"
+            className="btn-secondary-sm"
+            onClick={() => navigate('/admin/bookings')}
+          >
+            Manage Bookings
+          </button>
+        </div>
       </div>
-    </div>
+
+      {loading ? (
+        <div className="empty-card">
+          <h3 className="h-display">Loading admin data…</h3>
+        </div>
+      ) : (
+        <>
+          <div className="admin-stats">
+            <div className="admin-stat">
+              <div className="k">Total Cars</div>
+              <div className="v">{stats.totalCars}</div>
+            </div>
+            <div className="admin-stat">
+              <div className="k">Active Bookings</div>
+              <div className="v">{stats.activeBookings}</div>
+            </div>
+            <div className="admin-stat">
+              <div className="k">Total Revenue</div>
+              <div className="v">{fmt$(stats.totalRevenue)}</div>
+            </div>
+          </div>
+
+          <section className="profile-card admin-recent">
+            <h3>Recent bookings</h3>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Car</th>
+                  <th>Dates</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.slice(0, 5).map((b) => {
+                  const u = b.userId || {};
+                  const c = b.carId || {};
+                  return (
+                    <tr key={b._id}>
+                      <td>
+                        <div className="who-cell">
+                          <span className="avatar">
+                            {(u.name || '?')[0]}
+                          </span>
+                          <div>
+                            <b>{u.name || 'Unknown user'}</b>
+                            <span>{u.email || ''}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="car-cell">
+                          <img src={c.image} alt="" />
+                          <div className="car-name">
+                            <b>{c.name || 'Unknown car'}</b>
+                            <span>{c.type}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--ink-soft)' }}>
+                        {fmtDateShort(b.pickupDate)} – {fmtDateShort(b.returnDate)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {fmt$(b.totalPrice)}
+                      </td>
+                      <td>
+                        <span className={'status-pill ' + b.bookingStatus}>
+                          {b.bookingStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {bookings.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      style={{
+                        padding: 48,
+                        textAlign: 'center',
+                        color: 'var(--ink-soft)',
+                      }}
+                    >
+                      No bookings yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
+    </AdminShell>
   );
 };
 

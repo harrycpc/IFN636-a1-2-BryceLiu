@@ -1,54 +1,18 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import Icon from '../components/Icon';
+import { fmt$ } from '../utils/format';
 
 const CarDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [car, setCar] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const isAdmin = user?.role === 'admin';
-
-  const getAvailabilityClasses = (availability) => {
-    return availability === 'Available'
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
-  };
-
-  const handleDeleteReview = async (reviewId) => {
-    if (!window.confirm('Delete this review?')) {
-      return;
-    }
-
-    try {
-      await axiosInstance.delete(`/api/reviews/${reviewId}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      });
-
-      setReviews((prev) => prev.filter((review) => review._id !== reviewId));
-      setCar((prev) => {
-        if (!prev) return prev;
-
-        const remainingReviews = reviews.filter((review) => review._id !== reviewId);
-        const reviewCount = remainingReviews.length;
-        const averageRating = reviewCount
-          ? Number((remainingReviews.reduce((sum, review) => sum + Number(review.rating), 0) / reviewCount).toFixed(1))
-          : 0;
-
-        return {
-          ...prev,
-          reviewCount,
-          averageRating,
-        };
-      });
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to delete review.');
-    }
-  };
 
   useEffect(() => {
     const fetchCar = async () => {
@@ -57,7 +21,6 @@ const CarDetails = () => {
           axiosInstance.get(`/api/cars/${id}`),
           axiosInstance.get(`/api/reviews/car/${id}`),
         ]);
-
         setCar(carResponse.data);
         setReviews(reviewsResponse.data);
       } catch (error) {
@@ -66,169 +29,192 @@ const CarDetails = () => {
         setLoading(false);
       }
     };
-
     fetchCar();
   }, [id]);
 
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Delete this review?')) return;
+    try {
+      await axiosInstance.delete(`/api/reviews/${reviewId}`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      const remaining = reviews.filter((r) => r._id !== reviewId);
+      setReviews(remaining);
+      setCar((prev) => {
+        if (!prev) return prev;
+        const reviewCount = remaining.length;
+        const averageRating = reviewCount
+          ? Number(
+              (
+                remaining.reduce((sum, r) => sum + Number(r.rating), 0) /
+                reviewCount
+              ).toFixed(1)
+            )
+          : 0;
+        return { ...prev, reviewCount, averageRating };
+      });
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to delete review.');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <h1 className="text-2xl font-bold text-gray-800">Loading...</h1>
-          </div>
+      <main className="container">
+        <div className="empty-card">
+          <h3 className="h-display">Loading…</h3>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!car) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <h1 className="text-2xl font-bold text-gray-800">Car not found</h1>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <Link to="/cars" className="text-purple-600 hover:underline">
+      <main className="container">
+        <div className="empty-card">
+          <h3 className="h-display">Car not found.</h3>
+          <Link to="/cars" className="btn-link">
             ← Back to Browse Cars
           </Link>
         </div>
+      </main>
+    );
+  }
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="car-detail-image">
-              <img src={car.image} alt={car.name} className="car-detail-img" />
+  const unavailable = car.availability === 'Unavailable';
+
+  return (
+    <main className="container detail-shell">
+      <button className="back-link" onClick={() => navigate('/cars')}>
+        <Icon name="arrow-left" size={16} stroke={2} /> Back to Browse Cars
+      </button>
+
+      <div className="detail-grid">
+        <div className="detail-media">
+          <img src={car.image} alt={car.name} />
+        </div>
+
+        <div className="detail-info">
+          <div className="detail-card">
+            <h1 className="h-display detail-title">{car.name}</h1>
+            <p className="detail-type">{car.type}</p>
+            <p className="detail-rating">
+              {car.reviewCount > 0 ? (
+                <>
+                  Rating: <b>{Number(car.averageRating).toFixed(1)}/5</b> · from{' '}
+                  {car.reviewCount} review{car.reviewCount !== 1 ? 's' : ''}
+                </>
+              ) : (
+                <>No reviews yet</>
+              )}
+            </p>
+
+            <div className="spec-grid">
+              <div className="spec">
+                <div className="k">Location</div>
+                <div className="v">{car.location}</div>
+              </div>
+              <div className="spec">
+                <div className="k">Price per day</div>
+                <div className="v">{fmt$(car.pricePerDay)}</div>
+              </div>
+              <div className="spec">
+                <div className="k">Seats</div>
+                <div className="v">{car.seats}</div>
+              </div>
+              <div className="spec">
+                <div className="k">Transmission</div>
+                <div className="v">{car.transmission}</div>
+              </div>
+            </div>
+
+            <div className="detail-desc">
+              <div className="k">Description</div>
+              <p>{car.description || 'No description provided.'}</p>
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">{car.name}</h1>
-              <p className="text-gray-500 mb-6">{car.type}</p>
-              <p className="text-sm text-gray-600 mb-6">
-                Rating:{' '}
-                <span className="font-semibold text-gray-800">
-                  {car.reviewCount ? `${car.averageRating}/5` : 'No reviews yet'}
-                </span>
-                {car.reviewCount ? ` from ${car.reviewCount} review${car.reviewCount !== 1 ? 's' : ''}` : ''}
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 text-gray-700 mb-6">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-semibold">{car.location}</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Price per day</p>
-                  <p className="font-semibold">${car.pricePerDay}</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Seats</p>
-                  <p className="font-semibold">{car.seats}</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Transmission</p>
-                  <p className="font-semibold">{car.transmission}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Description</p>
-                <p className="text-gray-700 leading-7">{car.description}</p>
-              </div>
+          <div className="detail-card book-cta">
+            <div className="book-cta-head">
+              <h2 className="h-display">Booking Summary</h2>
+              <span
+                className={'card-avail ' + (unavailable ? 'is-off' : 'is-on')}
+              >
+                <span className="dot"></span>
+                {car.availability}
+              </span>
             </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">Booking Summary</h2>
-                <span className={`text-sm px-3 py-1 rounded-full ${getAvailabilityClasses(car.availability)}`}>
-                  {car.availability}
-                </span>
-              </div>
-
-              <p className="text-gray-600 mb-6">
-                {isAdmin
-                  ? 'This car can be updated from the admin fleet management page.'
-                  : 'This car is ready for booking. Continue to the booking page to enter pickup and return details.'}
-              </p>
-
-              {isAdmin ? (
-                <Link
-                  to={`/admin/cars?editCarId=${car._id}`}
-                  className="inline-block w-full text-center bg-purple-500 text-white px-5 py-3 rounded-full font-medium hover:bg-purple-600 transition"
-                >
-                  Modify Car Info
-                </Link>
-              ) : car.availability === 'Available' ? (
-                <Link
-                  to={`/bookings/create?carId=${car._id}`}
-                  className="inline-block w-full text-center bg-purple-500 text-white px-5 py-3 rounded-full font-medium hover:bg-purple-600 transition"
-                >
-                  Book Now
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full text-center bg-gray-100 text-gray-400 px-5 py-3 rounded-full font-medium cursor-not-allowed"
-                >
-                  Unavailable
-                </button>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Reviews</h2>
-
-              {reviews.length === 0 ? (
-                <p className="text-gray-500">No reviews have been posted for this car.</p>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review._id} className="border border-gray-100 rounded-xl p-4">
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <p className="font-semibold text-gray-800">
-                          {review.userId?.name || 'Customer'}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm bg-purple-50 text-purple-700 px-3 py-1 rounded-full">
-                            {review.rating}/5
-                          </span>
-                          {review.userId?._id === user?.id && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteReview(review._id)}
-                              className="text-sm bg-red-50 text-red-700 px-3 py-1 rounded-full hover:bg-red-100 transition"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-gray-600 leading-7">
-                        {review.comment || 'No comment provided.'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <p>
+              {isAdmin
+                ? 'This car can be updated from the admin fleet management page.'
+                : unavailable
+                ? 'This car is currently unavailable for booking.'
+                : 'This car is ready for booking. Continue to the booking page to enter pickup and return details.'}
+            </p>
+            {isAdmin ? (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => navigate(`/admin/cars?editCarId=${car._id}`)}
+              >
+                Modify Car Info
+              </button>
+            ) : unavailable ? (
+              <button type="button" className="btn-primary" disabled>
+                Unavailable
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() =>
+                  navigate(`/bookings/create?carId=${car._id}`)
+                }
+              >
+                Book Now
+              </button>
+            )}
           </div>
         </div>
       </div>
-    </div>
+
+      <section className="detail-card reviews-card">
+        <h2 className="h-display reviews-title">Reviews</h2>
+        {reviews.length === 0 ? (
+          <p className="reviews-empty">
+            No reviews have been posted for this car.
+          </p>
+        ) : (
+          <ul className="review-list">
+            {reviews.map((r) => (
+              <li className="review" key={r._id}>
+                <header>
+                  <div className="who">
+                    <span className="avatar">
+                      {(r.userId?.name || 'C')[0]}
+                    </span>
+                    <b>{r.userId?.name || 'Customer'}</b>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="rating-pill">{r.rating}/5</span>
+                    {r.userId?._id === user?.id && (
+                      <button
+                        type="button"
+                        className="btn-ghost-sm"
+                        onClick={() => handleDeleteReview(r._id)}
+                      >
+                        <Icon name="trash" size={12} stroke={2} /> Delete
+                      </button>
+                    )}
+                  </div>
+                </header>
+                <p>{r.comment || 'No comment provided.'}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 };
 

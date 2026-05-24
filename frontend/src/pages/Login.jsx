@@ -2,83 +2,109 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
+import Brand from '../components/Brand';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const set = (k, v) => {
+    setFormData((f) => ({ ...f, [k]: v }));
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.email || !formData.password) {
+      setError('Please enter your email and password.');
+      return;
+    }
     try {
       const response = await axiosInstance.post('/api/auth/login', formData);
       login(response.data);
       navigate(response.data.role === 'admin' ? '/admin' : '/cars');
-    } catch (error) {
-      alert('Login failed. Please try again.');
+    } catch (err) {
+      const serverMessage =
+        err.response?.data?.errors?.join(', ') ||
+        err.response?.data?.message;
+      setError(serverMessage || err.message || 'Login failed.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm p-8 md:p-10">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Login</h1>
-          <p className="text-gray-500 mt-2">
-            Sign in to continue to the Car Rental Booking System
+    <main className="auth-shell">
+      <section className="auth-form-wrap">
+        <div className="auth-form">
+          <div className="auth-brandline">
+            <Brand />
+          </div>
+
+          <h1 className="h-display">Login</h1>
+          <p className="sub">
+            Sign in to continue to the Car Rental Booking System.
+          </p>
+
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="field-stack">
+              <label>Email</label>
+              <input
+                className="input"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={(e) => set('email', e.target.value)}
+              />
+            </div>
+            <div className="field-stack">
+              <label>Password</label>
+              <input
+                className="input"
+                type="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={(e) => set('password', e.target.value)}
+              />
+            </div>
+            {error && <p className="form-error">{error}</p>}
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ marginTop: 8 }}
+            >
+              Login
+            </button>
+          </form>
+
+          <p className="auth-foot">
+            Don't have an account?{' '}
+            <Link to="/register">Sign up</Link>
+          </p>
+          <p className="auth-hint">
+            Demo: <code>test@test.com</code> (user) ·{' '}
+            <code>admin@admin.com</code> (admin)
           </p>
         </div>
+      </section>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+      <aside className="auth-side">
+        <div className="auth-side-pattern" aria-hidden="true"></div>
+        <div className="auth-side-content">
+          <p className="kicker">Car Rental Booking</p>
+          <div className="auth-marquee">
+            Pick a car. Pick a city. <em>Pick up the keys.</em>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+          <div className="auth-quote">
+            <p>
+              "Booked at 9am, on the road by 11. The friendliest car rental in
+              Brisbane I've used."
+            </p>
+            <b>— Daniel P. · Brisbane</b>
           </div>
-
-          <button
-            type="submit"
-            className="w-full bg-purple-500 text-white py-3 rounded-full font-medium hover:bg-purple-600 transition"
-          >
-            Login
-          </button>
-        </form>
-
-        <p className="text-center text-gray-500 mt-6">
-          Don’t have an account?{' '}
-          <Link
-            to="/register"
-            className="text-purple-600 font-medium hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
-      </div>
-    </div>
+        </div>
+      </aside>
+    </main>
   );
 };
 

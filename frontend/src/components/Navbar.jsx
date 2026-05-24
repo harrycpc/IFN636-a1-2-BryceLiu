@@ -1,92 +1,90 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Brand from './Brand';
+import Icon from './Icon';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isAdmin = user?.role === 'admin';
+  const displayName = user?.name || user?.username || user?.email || 'User';
+  const initial = displayName[0]?.toUpperCase() || '?';
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const displayName =
-    user?.name || user?.username || user?.email || 'User';
-  const isAdmin = user?.role === 'admin';
+  const isActive = (path) =>
+    pathname === path || pathname.startsWith(path + '/');
+
+  const link = (to, label, exact = false) => (
+    <button
+      type="button"
+      className={
+        'nav-link' +
+        ((exact ? pathname === to : isActive(to)) ? ' is-active' : '')
+      }
+      onClick={() => navigate(to)}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-        <Link
-          to={user ? '/cars' : '/login'}
-          className="text-2xl font-bold text-gray-800"
-        >
-          Car Rental Booking System
-        </Link>
+    <header className="nav">
+      <div className="container nav-inner">
+        <Brand onClick={() => navigate(user ? '/cars' : '/login')} />
 
-        <div className="flex items-center gap-4">
+        <nav className="nav-right">
           {user ? (
             <>
-              <Link
-                to="/cars"
-                className="text-gray-700 hover:text-purple-600 font-medium"
-              >
-                Browse Cars
-              </Link>
-
-              <Link
-                to={user.role === 'admin' ? '/admin/bookings' : '/bookings'}
-                className="text-gray-700 hover:text-purple-600 font-medium"
-              >
-                {user.role === 'admin' ? 'Manage Bookings' : 'My Bookings'}
-              </Link>
-
-              {user.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="text-gray-700 hover:text-purple-600 font-medium"
-                >
-                  Admin
-                </Link>
-              )}
-
-              <span
-                className={`text-sm px-3 py-2 rounded-full ${
-                  isAdmin
-                    ? 'text-purple-700 bg-purple-100 border border-purple-200'
-                    : 'text-gray-500 bg-gray-100'
-                }`}
-              >
-                Hi, {displayName}
-              </span>
-
+              {link('/cars', 'Browse Cars')}
+              {isAdmin
+                ? link('/admin/bookings', 'Manage Bookings')
+                : link('/bookings', 'My Bookings')}
+              {isAdmin && link('/admin', 'Admin', true)}
               <button
-                onClick={handleLogout}
-                className="bg-red-400 text-white px-4 py-2 rounded-full font-medium hover:bg-red-500 transition"
+                type="button"
+                className={
+                  'nav-link' + (pathname === '/profile' ? ' is-active' : '')
+                }
+                onClick={() => navigate('/profile')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                aria-label="Profile"
               >
-                Logout
+                <span className={'avatar' + (isAdmin ? ' is-admin' : '')}>
+                  {initial}
+                </span>
+                <span className="nav-name">
+                  Hi, {displayName.split(' ')[0]}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="btn-ghost-sm"
+                onClick={handleLogout}
+              >
+                <Icon name="logout" size={14} stroke={2} /> Logout
               </button>
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-gray-700 hover:text-purple-600 font-medium"
-              >
-                Login
-              </Link>
-
-              <Link
-                to="/register"
-                className="bg-purple-500 text-white px-4 py-2 rounded-full font-medium hover:bg-purple-600 transition"
+              {link('/login', 'Login')}
+              <button
+                type="button"
+                className="btn-primary-sm"
+                onClick={() => navigate('/register')}
               >
                 Sign Up
-              </Link>
+              </button>
             </>
           )}
-        </div>
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 };
 

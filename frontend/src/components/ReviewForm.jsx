@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import Icon from './Icon';
 
 const ReviewForm = ({ booking, onSubmitted }) => {
   const { user } = useAuth();
   const [rating, setRating] = useState(5);
+  const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    if (rating < 1 || rating > 5) return;
     try {
       setSubmitting(true);
       await axiosInstance.post(
@@ -21,17 +23,11 @@ const ReviewForm = ({ booking, onSubmitted }) => {
           rating: Number(rating),
           comment,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${user.token}` } }
       );
-
       setComment('');
       setRating(5);
       onSubmitted?.(booking._id);
-      alert('Review submitted successfully.');
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to submit review.');
     } finally {
@@ -40,47 +36,41 @@ const ReviewForm = ({ booking, onSubmitted }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 border-t border-gray-100 pt-4 space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rating
-        </label>
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRating(value)}
-              className={`text-3xl leading-none transition ${
-                value <= rating ? 'text-amber-400' : 'text-gray-300'
-              }`}
-              aria-label={`${value} star${value !== 1 ? 's' : ''}`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
+    <form className="review-form" onSubmit={handleSubmit}>
+      <div className="review-form-head">
+        <h4>Leave a review</h4>
+        <p>How was your trip? Help future renters know what to expect.</p>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Comment
-        </label>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows="3"
-          className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
-          placeholder="Share your rental experience"
-        />
+      <div className="stars-input" role="radiogroup" aria-label="Rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={'star-btn' + ((hover || rating) >= n ? ' is-on' : '')}
+            onMouseEnter={() => setHover(n)}
+            onMouseLeave={() => setHover(0)}
+            onClick={() => setRating(n)}
+            aria-label={`${n} star${n !== 1 ? 's' : ''}`}
+          >
+            <Icon name="star" size={24} />
+          </button>
+        ))}
+        <span className="stars-label">{rating}/5</span>
       </div>
-
+      <textarea
+        className="input"
+        rows={3}
+        placeholder="Tell others what made the trip great…"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+      />
       <button
         type="submit"
+        className="btn-primary"
+        style={{ maxWidth: 200, marginTop: 12 }}
         disabled={submitting}
-        className="w-full lg:w-auto bg-purple-500 text-white px-5 py-2.5 rounded-full font-medium hover:bg-purple-600 transition disabled:opacity-60"
       >
-        {submitting ? 'Submitting...' : 'Submit Review'}
+        {submitting ? 'Submitting…' : 'Submit Review'}
       </button>
     </form>
   );
