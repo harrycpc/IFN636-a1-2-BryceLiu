@@ -1,5 +1,5 @@
-// Frontend pricing helpers — estimate price using public rules
-// Keep logic similar to backend so estimates match server-side calculation
+// Frontend pricing helpers — calculate total price using public rules
+// Keep logic similar to backend so calculations match server-side result
 
 export const daysBetween = (pickupDate, returnDate) => {
   if (!pickupDate || !returnDate) return 0;
@@ -27,7 +27,7 @@ export const countWeekendDays = (pickupDate, returnDate) => {
   return weekendDays;
 };
 
-export const calculateEstimate = (pricePerDay, pickupDate, returnDate, longStayRules = [], weekendSurchargeRate = 0) => {
+export const calculateTotalPrice = (pricePerDay, pickupDate, returnDate, longStayRules = [], weekendSurchargeRate = 0) => {
   const days = daysBetween(pickupDate, returnDate);
   const base = Number((pricePerDay * days).toFixed(2));
 

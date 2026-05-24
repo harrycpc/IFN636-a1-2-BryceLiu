@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
 import { getPublicPricing } from '../api/pricingApi';
-import { calculateEstimate } from '../utils/pricing';
+import { calculateTotalPrice } from '../utils/pricing';
 import Icon from '../components/Icon';
 import { fmt$, fmtDate, daysBetween } from '../utils/format';
 import { LOCATIONS } from '../utils/constants';
@@ -17,13 +17,13 @@ const CreateBooking = () => {
   const carId = searchParams.get('carId') || '';
   const [selectedCar, setSelectedCar] = useState(null);
 
-  // Single source of truth for form inputs + estimate data
+  // Single source of truth for form inputs + price data
   const [formData, setFormData] = useState({
     pickupLocation: '',
     dropoffLocation: '',
     pickupDate: '',
     returnDate: '',
-    // estimate fields (populated by pricing API)
+    // price fields (populated by pricing API)
     totalPrice: 0,
     breakdown: null,
   });
@@ -48,29 +48,30 @@ const CreateBooking = () => {
     [formData.pickupDate, formData.returnDate]
   );
 
-    const dailyPrice = useMemo(() => {
-        return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
-    }, [selectedCar]);
+  const dailyPrice = useMemo(() => {
+    return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
+  }, [selectedCar]);
 
-    useEffect(() => {
-            const updateEstimate = async () => {
-              const estimated = days * dailyPrice;
+  useEffect(() => {
+    const updateTotalPrice = async () => {
+      const fallbackTotal = days * dailyPrice;
 
-              // fetch public pricing rules once and compute breakdown for display
-              try {
-                const pricing = await getPublicPricing();
-                // use current form dates for estimate
-                const estimate = calculateEstimate(dailyPrice, formData.pickupDate, formData.returnDate, pricing.longStayRules, pricing.weekendSurchargeRate);
-                // Preserve other form fields while writing estimate
-                setFormData((prev) => ({ ...prev, totalPrice: estimate.total, breakdown: estimate.breakdown }));
-              } catch (err) {
-                // fallback to basic calculation
-                setFormData((prev) => ({ ...prev, totalPrice: estimated }));
-              }
-            };
+      // fetch public pricing rules once and compute breakdown for display
+      try {
+        const pricing = await getPublicPricing();
+        // compute total price using current dates
+        const calc = calculateTotalPrice(dailyPrice, formData.pickupDate, formData.returnDate, pricing.longStayRules, pricing.weekendSurchargeRate);
+        // Preserve other form fields while writing calculated total and breakdown
+        setFormData((prev) => ({...prev, totalPrice: calc.total, breakdown: calc.breakdown}));
+      } catch (err) {
+        // fallback to basic calculation
+        setFormData((prev) => ({...prev, totalPrice: fallbackTotal}));
+      }
+    };
 
-        updateEstimate();
-    }, [days, dailyPrice]);
+    updateTotalPrice();
+    // include pickupDate/returnDate explicitly to satisfy react-hooks/exhaustive-deps
+  }, [days, dailyPrice, formData.pickupDate, formData.returnDate]);
 
   const canSubmit =
     formData.pickupLocation &&
@@ -92,7 +93,7 @@ const CreateBooking = () => {
           dropoffLocation: formData.dropoffLocation,
           pickupDate: formData.pickupDate,
           returnDate: formData.returnDate,
-          // prefer the estimate if available, otherwise fall back to base total
+          // prefer the calculated total if available, otherwise fall back to base total
           totalPrice: Number(formData.totalPrice),
           bookingStatus: 'pending',
         },
@@ -249,7 +250,7 @@ const CreateBooking = () => {
               <b>{selectedCar.transmission}</b>
             </div>
 
-              {/* price estimate card removed from here - breakdown now shown inside Total Price row */}
+              {/* price breakdown card removed from here - breakdown now shown inside Total Price row */}
 
             <div className="row">
               <span>Pickup Location</span>

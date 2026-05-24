@@ -139,25 +139,29 @@ const CarDetails = () => {
             </div>
           </div>
 
-            {pricingInfo && (
-                <div className="bg-white rounded-2xl shadow-sm p-6">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-3">Pricing Info</h2>
-                    <p className="text-gray-700 mb-2">Base price: <span className="font-semibold">${car.pricePerDay}/day</span></p>
-                    <div className="mb-2">
-                        <p className="text-gray-700 font-medium">Long-stay discounts:</p>
-                        {pricingInfo.longStayRules.length === 0 ? (
-                            <p className="text-gray-500">No long-stay discounts configured.</p>
-                        ) : (
-                            <ul className="text-gray-700 list-disc list-inside">
-                                {pricingInfo.longStayRules.map((r) => (
-                                    <li key={r._id}>{r.minDays}+ days: {r.discountRate}%</li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                    <p className="text-gray-700">Weekend surcharge (Fri–Sun): <span className="font-semibold">{pricingInfo.weekendSurchargeRate}%</span></p>
+          {pricingInfo && (
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-3">Pricing Info</h2>
+
+                <p className="text-gray-700 mb-2">Base price: <span
+                    className="font-semibold">${car.pricePerDay}/day</span></p>
+                <p className="text-gray-700 mb-2">Weekend surcharge
+                  (Fri–Sun): <span>{pricingInfo.weekendSurchargeRate}%</span></p>
+
+                <div className="mb-2">
+                  <p className="text-gray-700 mb-2">Long-stay discounts:</p>
+                  {pricingInfo.longStayRules.length === 0 ? (
+                      <p className="text-gray-500">No long-stay discounts configured.</p>
+                  ) : (
+                      <ul className="text-gray-700 list-disc list-inside">
+                        {pricingInfo.longStayRules.map((r) => (
+                            <li key={r._id}>{r.minDays}+ days: {r.discountRate}%</li>
+                        ))}
+                      </ul>
+                  )}
                 </div>
-            )}
+              </div>
+          )}
 
           <div className="detail-card book-cta">
             <div className="book-cta-head">
