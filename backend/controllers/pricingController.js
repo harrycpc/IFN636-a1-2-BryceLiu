@@ -2,7 +2,6 @@ const LongStayDiscountRule = require('../models/LongStayDiscountRule');
 const PricingSetting = require('../models/PricingSetting');
 
 // Pricing controller
-// Short, practical comments — explain what each handler does in plain terms
 
 // Public endpoint: return active long-stay rules and current weekend surcharge
 const getPublicPricing = async (req, res) => {
