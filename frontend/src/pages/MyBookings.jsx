@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import ReviewForm from '../components/ReviewForm';
+import { fmt$, fmtDate, daysBetween } from '../utils/format';
 
 const MyBookings = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [reviewedBookings, setReviewedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,259 +16,196 @@ const MyBookings = () => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-
-        const headers = {
-          Authorization: `Bearer ${user.token}`,
-        };
-
+        const headers = { Authorization: `Bearer ${user.token}` };
         const [bookingsResponse, reviewsResponse] = await Promise.all([
           axiosInstance.get('/api/bookings', { headers }),
           axiosInstance.get('/api/reviews/my', { headers }),
         ]);
-
-        const response = bookingsResponse;
-        const reviewedBookingIds = reviewsResponse.data.map((review) =>
-          String(review.bookingId)
+        const reviewedIds = reviewsResponse.data.map((r) =>
+          String(r.bookingId)
         );
-
-        setReviewedBookings(reviewedBookingIds);
-
-        const sortedBookings = [...response.data].sort(
-          (a, b) => new Date(b.createdAt || b.pickupDate) - new Date(a.createdAt || a.pickupDate)
+        setReviewedBookings(reviewedIds);
+        const sorted = [...bookingsResponse.data].sort(
+          (a, b) =>
+            new Date(b.createdAt || b.pickupDate) -
+            new Date(a.createdAt || a.pickupDate)
         );
-
-        setBookings(sortedBookings);
+        setBookings(sorted);
       } catch (error) {
         alert('Failed to fetch bookings.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchBookings();
+    if (user) fetchBookings();
   }, [user]);
 
-  const handleCancelBooking = async (id) => {
+  const handleCancel = async (id) => {
+    if (!window.confirm('Cancel this booking?')) return;
     try {
       await axiosInstance.delete(`/api/bookings/${id}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { Authorization: `Bearer ${user.token}` },
       });
-
-      setBookings((prev) => prev.filter((booking) => booking._id !== id));
-      alert('Booking cancelled successfully.');
+      setBookings((prev) => prev.filter((b) => b._id !== id));
     } catch (error) {
       alert('Failed to cancel booking.');
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not available';
-
-    return new Date(dateString).toLocaleDateString('en-AU', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getRentalDays = (pickupDate, returnDate) => {
-    if (!pickupDate || !returnDate) return 0;
-
-    const start = new Date(`${pickupDate.slice(0, 10)}T00:00:00`);
-    const end = new Date(`${returnDate.slice(0, 10)}T00:00:00`);
-    const diffTime = end - start;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays > 0 ? diffDays : 0;
-  };
-
-  const getStatusClasses = (status) => {
-    const value = String(status || '').toLowerCase();
-
-    if (value === 'pending') {
-      return 'bg-amber-100 text-amber-700';
-    }
-    if (value === 'confirmed') {
-      return 'bg-emerald-100 text-emerald-700';
-    }
-    if (value === 'cancelled') {
-      return 'bg-red-100 text-red-700';
-    }
-
-    return 'bg-gray-100 text-gray-700';
   };
 
   const handleReviewSubmitted = (bookingId) => {
     setReviewedBookings((prev) => [...prev, bookingId]);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+  const myBookings = useMemo(() => bookings, [bookings]);
+
+  if (loading) {
+    return (
+      <main className="container trips-shell">
+        <div className="empty-card">
+          <h3 className="h-display">Loading your bookings…</h3>
+        </div>
+      </main>
+    );
+  }
+
+  if (myBookings.length === 0) {
+    return (
+      <main className="container trips-shell">
+        <div className="trips-head">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">My Bookings</h1>
-            <p className="text-gray-500 mt-1">
-              View and manage your booking records
+            <h1 className="h-display trips-title">My Bookings</h1>
+            <p className="trips-sub">
+              View and manage your booking records.
             </p>
           </div>
-
-          <Link
-            to="/cars"
-            className="inline-flex items-center justify-center bg-purple-500 text-white px-5 py-3 rounded-full font-medium hover:bg-purple-600 transition"
+          <button
+            type="button"
+            className="btn-primary-sm"
+            onClick={() => navigate('/cars')}
           >
             Book Another Car
-          </Link>
+          </button>
         </div>
+        <div className="empty-card">
+          <h3 className="h-display">No bookings found</h3>
+          <p>You have not created any bookings yet.</p>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ maxWidth: 200, marginTop: 16 }}
+            onClick={() => navigate('/cars')}
+          >
+            Browse Cars
+          </button>
+        </div>
+      </main>
+    );
+  }
 
-        {loading ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-            <p className="text-gray-500">Loading your bookings...</p>
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-              No bookings found
-            </h2>
-            <p className="text-gray-500 mb-6">
-              You have not created any bookings yet.
-            </p>
-            <Link
-              to="/cars"
-              className="inline-flex items-center justify-center bg-purple-500 text-white px-5 py-3 rounded-full font-medium hover:bg-purple-600 transition"
-            >
-              Browse Cars
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {bookings.map((booking) => {
-              const rentalDays = getRentalDays(
-                booking.pickupDate,
-                booking.returnDate
-              );
-
-              return (
-                <div
-                  key={booking._id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
-                >
-                  <div className="grid lg:grid-cols-[220px_1fr_190px] gap-5 items-center">
-                    <div className="flex flex-col gap-3">
-                      <div className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex items-center justify-center">
-                        <img
-                          src={booking.carId?.image || '/images/default-car.png'}
-                          alt={booking.carId?.name || 'Car'}
-                          className="w-full h-full object-contain p-3"
-                        />
-                      </div>
-
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-800">
-                          {booking.carId?.name || 'Car Name'}
-                        </h3>
-                        <p className="text-gray-500 text-sm mt-1">
-                          {booking.carId?.type || 'Vehicle'}
-                        </p>
-
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">
-                            {booking.carId?.location || 'Location not set'}
-                          </span>
-                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                            ${booking.carId?.pricePerDay || 0}/day
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Pickup</p>
-                        <p className="font-semibold text-gray-800">
-                          {booking.pickupLocation}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Dropoff</p>
-                        <p className="font-semibold text-gray-800">
-                          {booking.dropoffLocation}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Pickup Date</p>
-                        <p className="font-semibold text-gray-800">
-                          {formatDate(booking.pickupDate)}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Return Date</p>
-                        <p className="font-semibold text-gray-800">
-                          {formatDate(booking.returnDate)}
-                        </p>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl p-4 sm:col-span-2">
-                        <p className="text-sm text-gray-500 mb-1">Rental Duration</p>
-                        <p className="font-semibold text-gray-800">
-                          {rentalDays} day{rentalDays !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3 lg:items-end">
-                      <div className="text-left lg:text-right">
-                        <p className="text-sm text-gray-500">Total Price</p>
-                        <p className="text-3xl font-bold text-gray-800">
-                          ${booking.totalPrice}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`inline-flex justify-center items-center px-4 py-2 rounded-full text-sm font-medium capitalize ${getStatusClasses(
-                          booking.bookingStatus
-                        )}`}
-                      >
-                        {booking.bookingStatus}
-                      </span>
-
-                      <Link
-                        to={`/bookings/edit/${booking._id}`}
-                        className="w-full lg:w-auto text-center bg-blue-500 text-white px-5 py-2.5 rounded-full font-medium hover:bg-blue-600 transition"
-                      >
-                        Edit Booking
-                      </Link>
-
-                      <button
-                        onClick={() => handleCancelBooking(booking._id)}
-                        className="w-full lg:w-auto bg-red-500 text-white px-5 py-2.5 rounded-full font-medium hover:bg-red-600 transition"
-                      >
-                        Cancel Booking
-                      </button>
-                    </div>
-                  </div>
-
-                  {booking.bookingStatus === 'completed' && !reviewedBookings.includes(booking._id) && (
-                    <ReviewForm booking={booking} onSubmitted={handleReviewSubmitted} />
-                  )}
-
-                  {reviewedBookings.includes(booking._id) && (
-                    <p className="mt-4 border-t border-gray-100 pt-4 text-sm text-green-700">
-                      Review submitted for this booking.
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+  return (
+    <main className="container trips-shell">
+      <div className="trips-head">
+        <div>
+          <h1 className="h-display trips-title">My Bookings</h1>
+          <p className="trips-sub">View and manage your booking records.</p>
+        </div>
+        <button
+          type="button"
+          className="btn-primary-sm"
+          onClick={() => navigate('/cars')}
+        >
+          Book Another Car
+        </button>
       </div>
-    </div>
+
+      <div className="trip-list">
+        {myBookings.map((b) => {
+          const car = b.carId || {};
+          const days = daysBetween(b.pickupDate, b.returnDate);
+          const alreadyReviewed = reviewedBookings.includes(b._id);
+          return (
+            <article key={b._id} className="trip">
+              <div className="trip-car">
+                <img src={car.image} alt={car.name || 'Car'} />
+                <div>
+                  <h3>{car.name || 'Car Name'}</h3>
+                  <p className="trip-type">{car.type || 'Vehicle'}</p>
+                  <div className="trip-pills">
+                    <span className="pill subtle">
+                      {car.location || 'Location not set'}
+                    </span>
+                    <span className="pill subtle">
+                      {fmt$(car.pricePerDay || 0)}/day
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="trip-grid">
+                <div className="cell">
+                  <div className="k">Pickup</div>
+                  <div className="v">{b.pickupLocation}</div>
+                </div>
+                <div className="cell">
+                  <div className="k">Dropoff</div>
+                  <div className="v">{b.dropoffLocation}</div>
+                </div>
+                <div className="cell">
+                  <div className="k">Pickup Date</div>
+                  <div className="v">{fmtDate(b.pickupDate)}</div>
+                </div>
+                <div className="cell">
+                  <div className="k">Return Date</div>
+                  <div className="v">{fmtDate(b.returnDate)}</div>
+                </div>
+                <div className="cell full">
+                  <div className="k">Rental Duration</div>
+                  <div className="v">
+                    {days} day{days !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div className="trip-side">
+                <div className="trip-total">
+                  <span className="k">Total Price</span>
+                  <span className="v">{fmt$(b.totalPrice)}</span>
+                </div>
+                <span className={'status-pill ' + b.bookingStatus}>
+                  {b.bookingStatus}
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => navigate(`/bookings/edit/${b._id}`)}
+                >
+                  Edit Booking
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => handleCancel(b._id)}
+                >
+                  Cancel Booking
+                </button>
+              </div>
+
+              {b.bookingStatus === 'completed' && !alreadyReviewed && (
+                <ReviewForm
+                  booking={b}
+                  onSubmitted={handleReviewSubmitted}
+                />
+              )}
+              {alreadyReviewed && (
+                <p className="trip-reviewed">
+                  ✓ Review submitted for this booking.
+                </p>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </main>
   );
 };
 
