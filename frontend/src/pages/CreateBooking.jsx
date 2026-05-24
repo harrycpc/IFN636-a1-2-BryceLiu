@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import { getPublicPricing } from '../api/pricingApi';
+import { calculateEstimate } from '../utils/pricing';
 import Icon from '../components/Icon';
 import { fmt$, fmtDate, daysBetween } from '../utils/format';
 import { LOCATIONS } from '../utils/constants';
@@ -41,6 +43,28 @@ const CreateBooking = () => {
     [form.pickupDate, form.returnDate]
   );
   const totalPrice = days * Number(selectedCar?.pricePerDay || 0);
+
+    const dailyPrice = useMemo(() => {
+        return Number(selectedCar?.pricePerDay || selectedCar?.price || 0);
+    }, [selectedCar]);
+
+    useEffect(() => {
+        const updateEstimate = async () => {
+            const estimated = days * dailyPrice;
+
+            // fetch public pricing rules once and compute breakdown for display
+            try {
+                const pricing = await getPublicPricing();
+                const estimate = calculateEstimate(dailyPrice, formData.pickupDate, formData.returnDate, pricing.longStayRules, pricing.weekendSurchargeRate);
+                setFormData((prev) => ({ ...prev, totalPrice: estimate.total, breakdown: estimate.breakdown }));
+            } catch (err) {
+                // fallback to basic calculation
+                setFormData((prev) => ({ ...prev, totalPrice: estimated }));
+            }
+        };
+
+        updateEstimate();
+    }, [days, dailyPrice]);
 
   const canSubmit =
     form.pickupLocation &&
@@ -210,6 +234,18 @@ const CreateBooking = () => {
               <span>Transmission</span>
               <b>{selectedCar.transmission}</b>
             </div>
+
+              {formData.breakdown && (
+                  <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                      <h3 className="text-lg font-semibold mb-3">Price estimate</h3>
+                      <p className="text-gray-700">Days: {formData.breakdown.days}</p>
+                      <p className="text-gray-700">Base: ${formData.breakdown.base}</p>
+                      <p className="text-gray-700">Long-stay discount: {formData.breakdown.discount.rate}% (-${formData.breakdown.discount.amount})</p>
+                      <p className="text-gray-700">Weekend surcharge: {formData.breakdown.weekend.rate}% (+${formData.breakdown.weekend.surcharge})</p>
+                      <p className="text-xl font-bold mt-3">Estimated total: ${formData.totalPrice}</p>
+                  </div>
+              )}
+
             <div className="row">
               <span>Pickup Location</span>
               <b>{form.pickupLocation || 'Not selected'}</b>
