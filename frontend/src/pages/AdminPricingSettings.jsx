@@ -21,7 +21,6 @@ const AdminPricingSettings = () => {
   const [editingId, setEditingId] = useState(null);
   const isEditing = Boolean(editingId);
 
-  const [weekendRate, setWeekendRate] = useState(0);
   const [weekendDraft, setWeekendDraft] = useState(0);
   const [weekendSavedAt, setWeekendSavedAt] = useState(null);
 
@@ -37,9 +36,7 @@ const AdminPricingSettings = () => {
     const fetchWeekend = async () => {
       try {
         const data = await getWeekendSurcharge(token);
-        const rate = data.weekendSurchargeRate || 0;
-        setWeekendRate(rate);
-        setWeekendDraft(rate);
+        setWeekendDraft(data.weekendSurchargeRate || 0);
       } catch (error) {
         alert('Failed to load weekend surcharge');
       }
@@ -101,7 +98,6 @@ const AdminPricingSettings = () => {
     const rate = Math.max(0, Math.min(100, Number(weekendDraft) || 0));
     try {
       await updateWeekendSurcharge(token, { weekendSurchargeRate: rate });
-      setWeekendRate(rate);
       setWeekendSavedAt(Date.now());
       setTimeout(() => setWeekendSavedAt(null), 2400);
     } catch (error) {
