@@ -67,13 +67,6 @@ const AdminDashboard = () => {
           >
             Manage Bookings
           </button>
-            <button
-                type="button"
-                className="btn-secondary-sm"
-                onClick={() => navigate('/admin/pricing')}
-            >
-                Pricing Settings
-            </button>
         </div>
       </div>
 
