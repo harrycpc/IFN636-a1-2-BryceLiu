@@ -35,6 +35,7 @@ const AdminShell = ({ children }) => {
         <div className="nav-section">Operations</div>
         {link('/admin/bookings', 'Manage Bookings', 'calendar')}
         {link('/admin/cars', 'Manage Cars', 'key')}
+        {link('/admin/pricing', 'Pricing Settings', 'tag')}
         {link('/cars', 'Browse Cars', 'search')}
       </aside>
       <div className="admin-main">{children}</div>
