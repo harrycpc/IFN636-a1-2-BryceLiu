@@ -10,7 +10,7 @@ The system allows users to sign up and log in, browse available cars, view car d
 
 The deployed application can be accessed at the following public URL:
 
-http://13.239.239.57
+http://ifn636-ass2-group-3-alb-1947263770.ap-southeast-2.elb.amazonaws.com/
 
 ## Tech Stack
 
