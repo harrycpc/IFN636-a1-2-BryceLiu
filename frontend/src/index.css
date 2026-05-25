@@ -875,3 +875,140 @@ textarea.input { resize: vertical; min-height: 80px; line-height: 1.5; }
   z-index: 100;
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ─────────────────────────────────────────────────────────────
+   Pricing Settings (admin)
+   ───────────────────────────────────────────────────────────── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.pricing-grid > .pricing-preview { grid-column: 1 / -1; }
+@media (max-width: 1100px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+  .pricing-grid > .pricing-preview { grid-column: auto; }
+}
+
+.pricing-card { padding: 24px; }
+.pricing-card-head {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.pricing-card-head h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+.pricing-card-head p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+.pricing-icon {
+  width: 38px; height: 38px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: var(--radius-md);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+
+.rule-form {
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.rule-form .field-grid { margin-bottom: 12px; }
+.rule-form .field-stack { margin-bottom: 0; }
+
+.input-with-suffix { position: relative; }
+.input-with-suffix .input { padding-right: 36px; }
+.input-with-suffix .suffix {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; font-weight: 600;
+  color: var(--ink-mute);
+  pointer-events: none;
+}
+
+.field-hint { margin: 4px 0 12px; font-size: 12px; color: var(--ink-mute); }
+
+.rule-table tbody td { padding: 14px 16px; }
+.rule-table .rule-hint {
+  display: block;
+  font-size: 12px; color: var(--ink-mute);
+  margin-top: 2px;
+}
+.rule-table tr.is-editing { background: var(--accent-soft); }
+.rule-table tr.is-editing td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+.discount-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--ok-soft);
+  color: oklch(0.4 0.12 150);
+  font-size: 13px; font-weight: 600;
+}
+
+.row-actions { display: flex; gap: 6px; }
+
+.rule-empty {
+  background: var(--surface-alt);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  text-align: center;
+}
+.rule-empty p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+/* Week visualizer */
+.weekend-week {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 6px; margin-top: 24px;
+  padding: 16px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+}
+.wd {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-height: 56px; justify-content: center;
+}
+.wd .wd-letter {
+  font-size: 13px; font-weight: 700;
+  color: var(--ink-mute);
+}
+.wd.is-weekend {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+.wd.is-weekend .wd-letter { color: var(--accent-ink); }
+.wd-rate {
+  font-size: 11px; font-weight: 700;
+  color: var(--accent-ink);
+  letter-spacing: 0.02em;
+}
+
+/* Preview */
+.preview-grid {
+  display: flex; flex-direction: column;
+}
+.preview-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.preview-row:first-of-type { border-top: 0; }
+.preview-row span { color: var(--ink-soft); }
+.preview-row em { font-style: normal; color: var(--ink-mute); }
+.preview-row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.preview-row.discount b { color: var(--ok); }
+.preview-row.surcharge b { color: var(--accent); }
+.preview-row.total {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+}

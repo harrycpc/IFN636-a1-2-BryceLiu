@@ -122,6 +122,28 @@ const Icon = ({ name, size = 18, stroke = 1.7 }) => {
           <path d="m10 11 10-10M14 5l3 3M16 3l3 3" />
         </svg>
       );
+    case 'tag':
+      return (
+        <svg {...s} viewBox="0 0 24 24">
+          <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" />
+          <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'percent':
+      return (
+        <svg {...s} viewBox="0 0 24 24">
+          <path d="M19 5 5 19" />
+          <circle cx="7" cy="7" r="2.5" />
+          <circle cx="17" cy="17" r="2.5" />
+        </svg>
+      );
+    case 'calendar-week':
+      return (
+        <svg {...s} viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 9h18M8 3v4M16 3v4M15 13h2M15 17h2" />
+        </svg>
+      );
     default:
       return null;
   }
