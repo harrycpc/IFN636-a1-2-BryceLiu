@@ -1,6 +1,6 @@
 const PricingSetting = require('../models/PricingSetting');
 
-// Weekend surcharge strategy
+// Weekend surcharge decorator
 // Compute surcharge for days that fall on Fri/Sat/Sun
 
 const isWeekendDay = (date) => {
@@ -49,5 +49,36 @@ const calculateSurcharge = async (pricePerDay, pickupDate, returnDate) => {
   return { rate, weekendDays, weekendSubtotal, surcharge };
 };
 
-module.exports = { computeWeekendSubtotal, calculateSurcharge };
+/**
+ * Class-based decorator: applies weekend surcharge on top of an inner pricing component
+ * Usage: `new WeekendSurchargeDecorator(innerComponent)`
+ */
+class WeekendSurchargeDecorator {
+  constructor(innerComponent) {
+    this.inner = innerComponent;
+  }
+
+  async calculate({ car, pickupDate, returnDate }) {
+    // run inner component first
+    const inner = await this.inner.calculate({ car, pickupDate, returnDate });
+
+    // compute weekend surcharge based on base per-day price
+    const pricePerDay = Number(car?.pricePerDay || 0);
+    const { rate, weekendDays, weekendSubtotal, surcharge } = await calculateSurcharge(pricePerDay, pickupDate, returnDate);
+
+    const total = Number((inner.total + surcharge).toFixed(2));
+
+    const breakdown = {
+      ...inner.breakdown,
+      weekend: { rate, weekendDays, weekendSubtotal: Number(weekendSubtotal.toFixed(2)), surcharge: Number(surcharge.toFixed(2)) },
+    };
+
+    return { total, breakdown };
+  }
+}
+
+// keep the old factory for convenience
+const createWeekendDecorator = (innerComponent) => new WeekendSurchargeDecorator(innerComponent);
+
+module.exports = { computeWeekendSubtotal, calculateSurcharge, WeekendSurchargeDecorator, createWeekendDecorator };
 

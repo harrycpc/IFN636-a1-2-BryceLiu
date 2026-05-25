@@ -1,6 +1,6 @@
 const Car = require('../models/Car');
 const Booking = require('../models/Booking');
-const pricingContext = require('../strategies/pricingContext');
+const pricingCalculator = require('../pricing/priceCalculator');
 
 class BookingServiceFacade {
     /**
@@ -13,9 +13,8 @@ class BookingServiceFacade {
         if (!car) throw new Error('Car not found');
         if (car.availability !== 'Available') throw new Error('Car is not available');
 
-        // Step 2: calculate total price using pricing strategies
-        // Use pricingContext so discounts/surcharges are applied centrally
-        const pricingResult = await pricingContext.calculatePrice({ car, pickupDate, returnDate });
+        // Step 2: calculate total price using pricing pricingCalculator
+        const pricingResult = await pricingCalculator.calculatePrice({ car, pickupDate, returnDate });
         const totalPrice = pricingResult.total;
 
         // Step 3: create the booking

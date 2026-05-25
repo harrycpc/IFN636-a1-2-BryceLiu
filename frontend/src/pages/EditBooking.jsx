@@ -4,6 +4,8 @@ import axiosInstance from '../axiosConfig';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
 import { fmt$, fmtDate, daysBetween } from '../utils/format';
+import { getPublicPricing } from '../api/pricingApi';
+import { calculateTotalPrice } from '../utils/pricing';
 import { LOCATIONS } from '../utils/constants';
 
 const EditBooking = () => {
@@ -24,6 +26,8 @@ const EditBooking = () => {
     bookingStatus: 'pending',
     carId: '',
   });
+  // pricing info from public rules (total + breakdown)
+  const [priceInfo, setPriceInfo] = useState({ totalPrice: 0, breakdown: null });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
@@ -58,7 +62,29 @@ const EditBooking = () => {
     () => daysBetween(form.pickupDate, form.returnDate),
     [form.pickupDate, form.returnDate]
   );
-  const totalPrice = days * Number(selectedCar?.pricePerDay || 0);
+  const dailyPrice = Number(selectedCar?.pricePerDay || 0);
+  const totalPrice = priceInfo?.totalPrice || days * dailyPrice;
+
+  // update pricing breakdown when dates or selectedCar change
+  useEffect(() => {
+    const updatePricing = async () => {
+      const fallback = days * dailyPrice;
+      if (!form.pickupDate || !form.returnDate) {
+        setPriceInfo({ totalPrice: fallback, breakdown: null });
+        return;
+      }
+
+      try {
+        const pricing = await getPublicPricing();
+        const calc = calculateTotalPrice(dailyPrice, form.pickupDate, form.returnDate, pricing.longStayRules, pricing.weekendSurchargeRate);
+        setPriceInfo({ totalPrice: calc.total, breakdown: calc.breakdown });
+      } catch (err) {
+        setPriceInfo({ totalPrice: fallback, breakdown: null });
+      }
+    };
+
+    updatePricing();
+  }, [form.pickupDate, form.returnDate, dailyPrice, days]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -236,10 +262,45 @@ const EditBooking = () => {
               <span>Rental Days</span>
               <b>{days}</b>
             </div>
-            <div className="row total">
-              <span>Total Price</span>
-              <b>{fmt$(totalPrice)}</b>
-            </div>
+            {/* Price breakdown: show components first, then Total Price row */}
+            {(() => {
+              const _breakdown = priceInfo?.breakdown || null;
+              const hasSurcharge = Boolean(_breakdown && Number(_breakdown.weekend?.surcharge || 0) > 0);
+              const hasDiscount = Boolean(_breakdown && Number(_breakdown.discount?.amount || 0) > 0);
+              const showBreakdown = Boolean(_breakdown && (hasSurcharge || hasDiscount));
+
+              return (
+                <>
+                  {showBreakdown && (
+                    <>
+                      <div className="row breakdown-start">
+                        <span>Base</span>
+                        <b>{fmt$(_breakdown.base)}</b>
+                      </div>
+
+                      {hasSurcharge && (
+                        <div className="row">
+                          <span>Weekend surcharge ({_breakdown.weekend.rate}%)</span>
+                          <b>+ {fmt$(_breakdown.weekend.surcharge)}</b>
+                        </div>
+                      )}
+
+                      {hasDiscount && (
+                        <div className="row">
+                          <span>Long-stay discount ({_breakdown.discount.rate}%)</span>
+                          <b>- {fmt$(_breakdown.discount.amount)}</b>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className={showBreakdown ? 'row breakdown-total' : 'row total'}>
+                    <span>Total Price</span>
+                    <b>{fmt$(totalPrice)}</b>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </aside>
       </div>
