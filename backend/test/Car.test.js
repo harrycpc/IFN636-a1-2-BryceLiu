@@ -144,3 +144,28 @@ describe('DeleteCar Function Test', () => {
   });
 });
 
+describe('ExternalCarAdapter Function Test', () => {
+  it('should adapt external car data to internal schema', async () => {
+    const { ExternalCarAdapter, MockExternalCarData } = require('../adapters/externalCarAdapter');
+
+    const external = new MockExternalCarData();
+    const adapter = new ExternalCarAdapter(external);
+
+    const adapted = await adapter.getAdaptedCars();
+
+    expect(adapted).to.be.an('array').with.lengthOf(1);
+    const car = adapted[0];
+
+    expect(car).to.include({
+      name: 'Toyota Corolla',
+      type: 'Sedan',
+      location: 'Brisbane',
+      pricePerDay: 75,
+      seats: 5,
+      transmission: 'Automatic',
+      availability: 'Available',
+      description: 'Fuel efficient city car',
+    });
+  });
+});
+
